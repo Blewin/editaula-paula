@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Eye, Pencil, Columns } from "lucide-react";
+import { ArrowLeft, Eye, Pencil } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderMarkdown } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ export const Route = createFileRoute("/doc/$id")({
   component: DocEditor,
 });
 
-type Mode = "edit" | "preview" | "split";
+type Mode = "live" | "source";
 
 function DocEditor() {
   const { id } = Route.useParams();
@@ -17,7 +17,7 @@ function DocEditor() {
   useItems(); // subscribe for reactivity
   const doc = getItem(id);
 
-  const [mode, setMode] = React.useState<Mode>("split");
+  const [mode, setMode] = React.useState<Mode>("live");
   const [name, setName] = React.useState(doc?.name ?? "");
   const [content, setContent] = React.useState(doc && doc.type === "doc" ? doc.content : "");
 
@@ -53,7 +53,7 @@ function DocEditor() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-6 py-3 flex items-center gap-3">
+        <div className="mx-auto max-w-3xl px-6 py-3 flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -73,44 +73,32 @@ function DocEditor() {
             placeholder="Untitled"
           />
           <div className="flex rounded-md border p-0.5">
-            <ModeBtn active={mode === "edit"} onClick={() => setMode("edit")}>
-              <Pencil className="size-4" />
-            </ModeBtn>
-            <ModeBtn active={mode === "split"} onClick={() => setMode("split")}>
-              <Columns className="size-4" />
-            </ModeBtn>
-            <ModeBtn active={mode === "preview"} onClick={() => setMode("preview")}>
+            <ModeBtn active={mode === "live"} onClick={() => setMode("live")}>
               <Eye className="size-4" />
+            </ModeBtn>
+            <ModeBtn active={mode === "source"} onClick={() => setMode("source")}>
+              <Pencil className="size-4" />
             </ModeBtn>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 mx-auto w-full max-w-6xl px-6 py-6">
-        <div
-          className={
-            mode === "split"
-              ? "grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-9rem)]"
-              : "h-[calc(100vh-9rem)]"
-          }
-        >
-          {(mode === "edit" || mode === "split") && (
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full h-full resize-none rounded-lg border bg-card p-4 font-mono text-sm outline-none focus:ring-1 focus:ring-ring"
-              placeholder="# Write some markdown..."
-              spellCheck={false}
-            />
-          )}
-          {(mode === "preview" || mode === "split") && (
-            <div
-              className="w-full h-full overflow-auto rounded-lg border bg-card p-6 prose-sm"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-            />
-          )}
-        </div>
-      </div>
+      <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8">
+        {mode === "source" ? (
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full min-h-[calc(100vh-10rem)] resize-none rounded-lg border bg-card p-6 font-mono text-sm leading-relaxed outline-none focus:ring-1 focus:ring-ring"
+            placeholder="# Write some markdown..."
+            spellCheck={false}
+          />
+        ) : (
+          <div
+            className="w-full min-h-[calc(100vh-10rem)] rounded-lg border bg-card p-6 prose prose-sm dark:prose-invert max-w-none"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+          />
+        )}
+      </main>
     </div>
   );
 }
@@ -136,3 +124,4 @@ function ModeBtn({
     </button>
   );
 }
+
