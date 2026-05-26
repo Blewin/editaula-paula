@@ -144,14 +144,9 @@ function Tile({
         <div
           onDoubleClick={onActivate}
           onClick={onActivate}
-          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden"
+          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col"
         >
-          {item.type === "folder" ? (
-            <FolderTile color={item.color} />
-          ) : (
-            <DocThumbnail content={item.content} />
-          )}
-          <div className="px-3 py-2.5 border-t bg-card flex items-center gap-2">
+          <div className="px-3 py-2.5 flex items-center gap-2 z-10">
             {item.type === "folder" ? (
               <Folder className="size-4 shrink-0" style={{ color: item.color }} />
             ) : (
@@ -177,6 +172,11 @@ function Tile({
               <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
             )}
           </div>
+          {item.type === "folder" ? (
+            <FolderTile color={item.color} />
+          ) : (
+            <DocThumbnail content={item.content} />
+          )}
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
