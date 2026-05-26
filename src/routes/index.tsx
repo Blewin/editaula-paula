@@ -144,14 +144,9 @@ function Tile({
         <div
           onDoubleClick={onActivate}
           onClick={onActivate}
-          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden"
+          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col"
         >
-          {item.type === "folder" ? (
-            <FolderTile color={item.color} />
-          ) : (
-            <DocThumbnail content={item.content} />
-          )}
-          <div className="px-3 py-2.5 border-t bg-card flex items-center gap-2">
+          <div className="px-3 py-2.5 flex items-center gap-2 z-10">
             {item.type === "folder" ? (
               <Folder className="size-4 shrink-0" style={{ color: item.color }} />
             ) : (
@@ -177,6 +172,11 @@ function Tile({
               <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
             )}
           </div>
+          {item.type === "folder" ? (
+            <FolderTile color={item.color} />
+          ) : (
+            <DocThumbnail content={item.content} />
+          )}
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
@@ -229,20 +229,20 @@ function Tile({
 function FolderTile({ color }: { color: string }) {
   return (
     <div
-      className="aspect-[4/3] flex items-center justify-center relative"
-      style={{ backgroundColor: `${color}22` }}
+      className="flex-1 relative overflow-hidden"
+      style={{
+        background: `radial-gradient(120% 100% at 80% 20%, ${color}dd 0%, ${color} 60%, ${color}88 100%)`,
+      }}
     >
-      <svg viewBox="0 0 100 80" className="w-2/3 drop-shadow-sm">
-        <path
-          d="M5 18 Q5 12 11 12 L38 12 L46 20 L89 20 Q95 20 95 26 L95 68 Q95 74 89 74 L11 74 Q5 74 5 68 Z"
-          fill={color}
-        />
-        <path
-          d="M5 28 L95 28 L95 68 Q95 74 89 74 L11 74 Q5 74 5 68 Z"
-          fill={color}
-          opacity="0.85"
-        />
-      </svg>
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{
+          background: `linear-gradient(160deg, transparent 40%, rgba(255,255,255,0.25) 60%, transparent 70%)`,
+        }}
+      />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <Folder className="size-16 text-white/40" strokeWidth={1.5} />
+      </div>
     </div>
   );
 }
@@ -256,7 +256,7 @@ function DocThumbnail({ content }: { content: string }) {
     .join("\n");
   const firstHeading = content.split("\n").find((l) => l.startsWith("#"))?.replace(/^#+\s*/, "");
   return (
-    <div className="aspect-[4/3] bg-white relative overflow-hidden">
+    <div className="flex-1 bg-white relative overflow-hidden">
       <div className="absolute inset-0 p-4 text-[7px] leading-[1.3] text-slate-700 font-mono whitespace-pre-wrap">
         {firstHeading && (
           <div className="text-[11px] font-bold text-slate-900 mb-1.5">{firstHeading}</div>
