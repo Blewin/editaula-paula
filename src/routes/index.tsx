@@ -256,7 +256,7 @@ function DocThumbnail({ content }: { content: string }) {
     .join("\n");
   const firstHeading = content.split("\n").find((l) => l.startsWith("#"))?.replace(/^#+\s*/, "");
   return (
-    <div className="aspect-[4/3] bg-white relative overflow-hidden">
+    <div className="flex-1 bg-white relative overflow-hidden">
       <div className="absolute inset-0 p-4 text-[7px] leading-[1.3] text-slate-700 font-mono whitespace-pre-wrap">
         {firstHeading && (
           <div className="text-[11px] font-bold text-slate-900 mb-1.5">{firstHeading}</div>
