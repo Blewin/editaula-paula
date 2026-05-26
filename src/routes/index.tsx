@@ -58,7 +58,6 @@ function Browser() {
     <div className="min-h-screen bg-background">
       <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4">
-          <h1 className="text-lg font-semibold">Markdown</h1>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleNewFolder}>
               <FolderPlus /> New folder
@@ -67,16 +66,18 @@ function Browser() {
               <FilePlus2 /> New document
             </Button>
           </div>
+          <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
+          <div className="w-[1px]" />
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-6">
-        <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-6 flex-wrap">
+        <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
           {trail.map((b, i) => (
             <React.Fragment key={b.id ?? "root"}>
-              {i > 0 && <ChevronRight className="size-4" />}
+              {i > 0 && <ChevronRight className="size-6" />}
               <button
-                className="hover:text-foreground transition-colors"
+                className="hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
                 onClick={() =>
                   navigate({ to: "/", search: b.id ? { folder: b.id } : {} })
                 }
