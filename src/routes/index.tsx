@@ -72,12 +72,12 @@ function Browser() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-6">
-        <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-6 flex-wrap">
+        <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
           {trail.map((b, i) => (
             <React.Fragment key={b.id ?? "root"}>
-              {i > 0 && <ChevronRight className="size-4" />}
+              {i > 0 && <ChevronRight className="size-6" />}
               <button
-                className="hover:text-foreground transition-colors"
+                className="hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
                 onClick={() =>
                   navigate({ to: "/", search: b.id ? { folder: b.id } : {} })
                 }
