@@ -22,6 +22,28 @@ function inline(s: string) {
   return out;
 }
 
+// Render a single line of markdown to HTML (no multi-line constructs like code fences).
+// Empty lines render as a non-breaking space so the line keeps its height.
+export function renderLine(raw: string): string {
+  const line = raw.trimEnd();
+  if (!line.trim()) return '<span class="opacity-0">.</span>';
+  const h = /^(#{1,6})\s+(.*)$/.exec(line);
+  if (h) {
+    const level = h[1].length;
+    const sizes = ["text-3xl", "text-2xl", "text-xl", "text-lg", "text-base", "text-sm"];
+    return `<span class="${sizes[level - 1]} font-bold">${inline(h[2])}</span>`;
+  }
+  const ul = /^[-*]\s+(.*)$/.exec(line);
+  if (ul) return `<span class="inline-block w-4">•</span>${inline(ul[1])}`;
+  const ol = /^(\d+)\.\s+(.*)$/.exec(line);
+  if (ol) return `<span class="inline-block w-6">${ol[1]}.</span>${inline(ol[2])}`;
+  if (line.startsWith("> "))
+    return `<span class="border-l-4 border-muted pl-3 italic text-muted-foreground inline-block">${inline(line.slice(2))}</span>`;
+  if (line.startsWith("```"))
+    return `<span class="font-mono text-sm text-muted-foreground">${escapeHtml(line)}</span>`;
+  return inline(line);
+}
+
 export function renderMarkdown(md: string): string {
   const lines = md.split("\n");
   const html: string[] = [];
