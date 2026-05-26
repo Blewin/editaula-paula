@@ -229,20 +229,20 @@ function Tile({
 function FolderTile({ color }: { color: string }) {
   return (
     <div
-      className="aspect-[4/3] flex items-center justify-center relative"
-      style={{ backgroundColor: `${color}22` }}
+      className="flex-1 relative overflow-hidden"
+      style={{
+        background: `radial-gradient(120% 100% at 80% 20%, ${color}dd 0%, ${color} 60%, ${color}88 100%)`,
+      }}
     >
-      <svg viewBox="0 0 100 80" className="w-2/3 drop-shadow-sm">
-        <path
-          d="M5 18 Q5 12 11 12 L38 12 L46 20 L89 20 Q95 20 95 26 L95 68 Q95 74 89 74 L11 74 Q5 74 5 68 Z"
-          fill={color}
-        />
-        <path
-          d="M5 28 L95 28 L95 68 Q95 74 89 74 L11 74 Q5 74 5 68 Z"
-          fill={color}
-          opacity="0.85"
-        />
-      </svg>
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{
+          background: `linear-gradient(160deg, transparent 40%, rgba(255,255,255,0.25) 60%, transparent 70%)`,
+        }}
+      />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <Folder className="size-16 text-white/40" strokeWidth={1.5} />
+      </div>
     </div>
   );
 }
