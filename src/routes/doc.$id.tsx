@@ -1,15 +1,13 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/doc/$id")({
   component: DocEditor,
 });
-
-type Mode = "live" | "source";
 
 function DocEditor() {
   const { id } = Route.useParams();
@@ -17,15 +15,18 @@ function DocEditor() {
   useItems(); // subscribe for reactivity
   const doc = getItem(id);
 
-  const [mode, setMode] = React.useState<Mode>("live");
   const [name, setName] = React.useState(doc?.name ?? "");
   const [content, setContent] = React.useState(doc && doc.type === "doc" ? doc.content : "");
+  const [active, setActive] = React.useState<number>(0);
+  const [caretPos, setCaretPos] = React.useState<number | null>(null);
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
     if (doc) {
       setName(doc.name);
       if (doc.type === "doc") setContent(doc.content);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Auto-save
@@ -37,7 +38,22 @@ function DocEditor() {
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [name, content, id]);
+  }, [name, content, id, doc]);
+
+  // Focus active line input and place caret
+  React.useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    // Auto-size
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+    if (caretPos !== null) {
+      const pos = Math.min(caretPos, el.value.length);
+      el.setSelectionRange(pos, pos);
+      setCaretPos(null);
+    }
+  }, [active, caretPos]);
 
   if (!doc || doc.type !== "doc") {
     return (
@@ -49,6 +65,70 @@ function DocEditor() {
       </div>
     );
   }
+
+  const lines = content.length === 0 ? [""] : content.split("\n");
+  const safeActive = Math.min(active, lines.length - 1);
+
+  const setLines = (next: string[], newActive: number, newCaret: number | null = null) => {
+    setContent(next.join("\n"));
+    setActive(newActive);
+    if (newCaret !== null) setCaretPos(newCaret);
+  };
+
+  const onLineChange = (val: string) => {
+    // If user pasted/typed a newline, split into multiple lines
+    if (val.includes("\n")) {
+      const parts = val.split("\n");
+      const next = [...lines];
+      next.splice(safeActive, 1, ...parts);
+      setLines(next, safeActive + parts.length - 1, parts[parts.length - 1].length);
+      return;
+    }
+    const next = [...lines];
+    next[safeActive] = val;
+    setContent(next.join("\n"));
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget;
+    const pos = el.selectionStart ?? 0;
+    const val = el.value;
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const before = val.slice(0, pos);
+      const after = val.slice(pos);
+      const next = [...lines];
+      next.splice(safeActive, 1, before, after);
+      setLines(next, safeActive + 1, 0);
+      return;
+    }
+    if (e.key === "Backspace" && pos === 0 && safeActive > 0) {
+      e.preventDefault();
+      const prev = lines[safeActive - 1];
+      const next = [...lines];
+      next.splice(safeActive - 1, 2, prev + val);
+      setLines(next, safeActive - 1, prev.length);
+      return;
+    }
+    if (e.key === "ArrowUp" && safeActive > 0) {
+      e.preventDefault();
+      setCaretPos(Math.min(pos, lines[safeActive - 1].length));
+      setActive(safeActive - 1);
+      return;
+    }
+    if (e.key === "ArrowDown" && safeActive < lines.length - 1) {
+      e.preventDefault();
+      setCaretPos(Math.min(pos, lines[safeActive + 1].length));
+      setActive(safeActive + 1);
+      return;
+    }
+  };
+
+  const focusLine = (idx: number, caret: number | null = null) => {
+    setActive(idx);
+    setCaretPos(caret ?? lines[idx].length);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -72,56 +152,40 @@ function DocEditor() {
             className="flex-1 bg-transparent text-lg font-semibold outline-none"
             placeholder="Untitled"
           />
-          <div className="flex rounded-md border p-0.5">
-            <ModeBtn active={mode === "live"} onClick={() => setMode("live")}>
-              <Eye className="size-4" />
-            </ModeBtn>
-            <ModeBtn active={mode === "source"} onClick={() => setMode("source")}>
-              <Pencil className="size-4" />
-            </ModeBtn>
-          </div>
         </div>
       </header>
 
       <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8">
-        {mode === "source" ? (
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full min-h-[calc(100vh-10rem)] resize-none rounded-lg border bg-card p-6 font-mono text-sm leading-relaxed outline-none focus:ring-1 focus:ring-ring"
-            placeholder="# Write some markdown..."
-            spellCheck={false}
-          />
-        ) : (
-          <div
-            className="w-full min-h-[calc(100vh-10rem)] rounded-lg border bg-card p-6 prose prose-sm dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-          />
-        )}
+        <div
+          className="w-full min-h-[calc(100vh-10rem)] rounded-lg border bg-card p-6 leading-relaxed"
+          onClick={(e) => {
+            // Clicking empty area at the bottom focuses the last line
+            if (e.target === e.currentTarget) focusLine(lines.length - 1);
+          }}
+        >
+          {lines.map((line, i) =>
+            i === safeActive ? (
+              <textarea
+                key={i}
+                ref={inputRef}
+                value={line}
+                onChange={(e) => onLineChange(e.target.value)}
+                onKeyDown={onKeyDown}
+                rows={1}
+                className="block w-full resize-none bg-transparent font-mono text-sm outline-none my-1 overflow-hidden"
+                spellCheck={false}
+              />
+            ) : (
+              <div
+                key={i}
+                onClick={() => focusLine(i)}
+                className="my-1 cursor-text min-h-[1.5rem]"
+                dangerouslySetInnerHTML={{ __html: renderLine(line) }}
+              />
+            ),
+          )}
+        </div>
       </main>
     </div>
   );
 }
-
-function ModeBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={
-        "px-2.5 py-1 rounded text-sm transition-colors " +
-        (active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50")
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
