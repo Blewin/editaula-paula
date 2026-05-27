@@ -144,7 +144,7 @@ function Tile({
         <div
           onDoubleClick={onActivate}
           onClick={onActivate}
-          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col"
+          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-56"
         >
           <div className="px-3 py-2.5 flex items-center gap-2 z-10">
             {item.type === "folder" ? (
