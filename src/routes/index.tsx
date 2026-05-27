@@ -240,9 +240,6 @@ function FolderTile({ color }: { color: string }) {
           background: `linear-gradient(160deg, transparent 40%, rgba(255,255,255,0.25) 60%, transparent 70%)`,
         }}
       />
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Folder className="size-16 text-white/40" strokeWidth={1.5} />
-      </div>
     </div>
   );
 }
