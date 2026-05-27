@@ -101,7 +101,7 @@ function Browser() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-5">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(154px,1fr))] gap-4">
             {visible.map((item) => (
               <Tile key={item.id} item={item} onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })} onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })} />
             ))}
@@ -144,13 +144,13 @@ function Tile({
         <div
           onDoubleClick={onActivate}
           onClick={onActivate}
-          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-56"
+          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-40"
         >
-          <div className="px-3 py-2.5 flex items-center gap-2 z-10">
+          <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
             {item.type === "folder" ? (
-              <Folder className="size-4 shrink-0" style={{ color: item.color }} />
+              <Folder className="size-3.5 shrink-0" style={{ color: item.color }} />
             ) : (
-              <FileText className="size-4 shrink-0 text-muted-foreground" />
+              <FileText className="size-3.5 shrink-0 text-muted-foreground" />
             )}
             {editing ? (
               <input
@@ -166,10 +166,10 @@ function Tile({
                   }
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-primary"
+                className="flex-1 bg-transparent text-xs font-medium outline-none border-b border-primary"
               />
             ) : (
-              <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
+              <span className="flex-1 text-xs font-medium truncate">{item.name}</span>
             )}
           </div>
           {item.type === "folder" ? (
@@ -240,9 +240,6 @@ function FolderTile({ color }: { color: string }) {
           background: `linear-gradient(160deg, transparent 40%, rgba(255,255,255,0.25) 60%, transparent 70%)`,
         }}
       />
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Folder className="size-16 text-white/40" strokeWidth={1.5} />
-      </div>
     </div>
   );
 }
