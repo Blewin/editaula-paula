@@ -148,9 +148,9 @@ function Tile({
         >
           <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
             {item.type === "folder" ? (
-              <Folder className="size-3.5 shrink-0" style={{ color: item.color }} />
+              <Folder className="size-4 shrink-0" style={{ color: item.color }} />
             ) : (
-              <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+              <FileText className="size-4 shrink-0 text-muted-foreground" />
             )}
             {editing ? (
               <input
@@ -166,10 +166,10 @@ function Tile({
                   }
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="flex-1 bg-transparent text-xs font-medium outline-none border-b border-primary"
+                className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-primary"
               />
             ) : (
-              <span className="flex-1 text-xs font-medium truncate">{item.name}</span>
+              <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
             )}
           </div>
           {item.type === "folder" ? (
