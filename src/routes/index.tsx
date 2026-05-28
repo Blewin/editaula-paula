@@ -101,7 +101,7 @@ function Browser() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,160px)] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
             {visible.map((item) => (
               <Tile key={item.id} item={item} onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })} onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })} />
             ))}
