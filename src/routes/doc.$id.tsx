@@ -9,6 +9,13 @@ export const Route = createFileRoute("/doc/$id")({
   component: DocEditor,
 });
 
+const DIVIDER = "\u0001___SHEET_DIVIDER___\u0001";
+
+function ensureDivider(c: string): string {
+  if (c.includes(DIVIDER)) return c;
+  return (c ? c + "\n" : "") + DIVIDER + "\n";
+}
+
 function DocEditor() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -16,7 +23,9 @@ function DocEditor() {
   const doc = getItem(id);
 
   const [name, setName] = React.useState(doc?.name ?? "");
-  const [content, setContent] = React.useState(doc && doc.type === "doc" ? doc.content : "");
+  const [content, setContent] = React.useState(
+    doc && doc.type === "doc" ? ensureDivider(doc.content) : "",
+  );
   const [active, setActive] = React.useState<number>(0);
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
@@ -24,7 +33,7 @@ function DocEditor() {
   React.useEffect(() => {
     if (doc) {
       setName(doc.name);
-      if (doc.type === "doc") setContent(doc.content);
+      if (doc.type === "doc") setContent(ensureDivider(doc.content));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -67,7 +76,11 @@ function DocEditor() {
   }
 
   const lines = content.length === 0 ? [""] : content.split("\n");
-  const safeActive = Math.min(active, lines.length - 1);
+  let safeActive = Math.min(active, lines.length - 1);
+  if (lines[safeActive] === DIVIDER) {
+    // never let the divider be the active editable line
+    safeActive = safeActive + 1 < lines.length ? safeActive + 1 : safeActive - 1;
+  }
 
   const setLines = (next: string[], newActive: number, newCaret: number | null = null) => {
     setContent(next.join("\n"));
@@ -104,8 +117,17 @@ function DocEditor() {
       return;
     }
     if (e.key === "Backspace" && pos === 0 && safeActive > 0) {
-      e.preventDefault();
       const prev = lines[safeActive - 1];
+      if (prev === DIVIDER) {
+        // do not merge across the sheet divider
+        e.preventDefault();
+        if (safeActive - 2 >= 0) {
+          setCaretPos(lines[safeActive - 2].length);
+          setActive(safeActive - 2);
+        }
+        return;
+      }
+      e.preventDefault();
       const next = [...lines];
       next.splice(safeActive - 1, 2, prev + val);
       setLines(next, safeActive - 1, prev.length);
@@ -113,19 +135,38 @@ function DocEditor() {
     }
     if (e.key === "ArrowUp" && safeActive > 0) {
       e.preventDefault();
-      setCaretPos(Math.min(pos, lines[safeActive - 1].length));
-      setActive(safeActive - 1);
+      let target = safeActive - 1;
+      if (lines[target] === DIVIDER) target -= 1;
+      if (target >= 0) {
+        setCaretPos(Math.min(pos, lines[target].length));
+        setActive(target);
+      }
       return;
     }
     if (e.key === "ArrowDown" && safeActive < lines.length - 1) {
       e.preventDefault();
-      setCaretPos(Math.min(pos, lines[safeActive + 1].length));
-      setActive(safeActive + 1);
+      let target = safeActive + 1;
+      if (lines[target] === DIVIDER) target += 1;
+      if (target < lines.length) {
+        setCaretPos(Math.min(pos, lines[target].length));
+        setActive(target);
+      }
       return;
     }
   };
 
   const focusLine = (idx: number, caret: number | null = null) => {
+    if (lines[idx] === DIVIDER) {
+      // bounce to the line just below the divider; create one if missing
+      if (idx + 1 < lines.length) {
+        setActive(idx + 1);
+        setCaretPos(caret ?? lines[idx + 1].length);
+      } else {
+        const next = [...lines, ""];
+        setLines(next, next.length - 1, 0);
+      }
+      return;
+    }
     setActive(idx);
     setCaretPos(caret ?? lines[idx].length);
   };
@@ -159,16 +200,32 @@ function DocEditor() {
         <div
           className="relative w-full min-h-[calc(100vh-10rem)] rounded-lg border bg-card p-6 leading-relaxed"
           onClick={(e) => {
-            // Clicking empty area at the bottom focuses the last line
-            if (e.target === e.currentTarget) focusLine(lines.length - 1);
+            // Clicking empty area at the bottom focuses the last writable line
+            if (e.target === e.currentTarget) {
+              const lastIdx = lines.length - 1;
+              if (lines[lastIdx] === DIVIDER) {
+                const next = [...lines, ""];
+                setLines(next, next.length - 1, 0);
+              } else {
+                focusLine(lastIdx);
+              }
+            }
           }}
         >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-6 right-6 bottom-[70px] h-[2px] rounded-full bg-foreground/40"
-          />
-          {lines.map((line, i) =>
-            i === safeActive ? (
+          {lines.map((line, i) => {
+            if (line === DIVIDER) {
+              return (
+                <div
+                  key={i}
+                  onClick={() => focusLine(i)}
+                  aria-hidden
+                  className="my-4 flex items-center gap-3 cursor-text select-none"
+                >
+                  <span className="h-[3px] flex-1 rounded-full bg-foreground/50" />
+                </div>
+              );
+            }
+            return i === safeActive ? (
               <textarea
                 key={i}
                 ref={inputRef}
@@ -186,10 +243,11 @@ function DocEditor() {
                 className="my-1 cursor-text min-h-[1.5rem]"
                 dangerouslySetInnerHTML={{ __html: renderLine(line) }}
               />
-            ),
-          )}
+            );
+          })}
         </div>
       </main>
     </div>
   );
 }
+
