@@ -157,12 +157,16 @@ function DocEditor() {
 
       <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8">
         <div
-          className="w-full min-h-[calc(100vh-10rem)] rounded-lg border bg-card p-6 leading-relaxed"
+          className="relative w-full min-h-[calc(100vh-10rem)] rounded-lg border bg-card p-6 leading-relaxed"
           onClick={(e) => {
             // Clicking empty area at the bottom focuses the last line
             if (e.target === e.currentTarget) focusLine(lines.length - 1);
           }}
         >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-6 right-6 bottom-[70px] h-[2px] rounded-full bg-foreground/40"
+          />
           {lines.map((line, i) =>
             i === safeActive ? (
               <textarea
