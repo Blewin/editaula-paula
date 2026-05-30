@@ -185,7 +185,9 @@ function DocEditor() {
     return (
       <div
         key={s}
-        className="w-full min-h-[calc(50vh-6rem)] rounded-lg border bg-card p-6 leading-relaxed"
+        className={`w-full min-h-[calc(50vh-6rem)] border bg-card p-6 leading-relaxed ${
+          s === 0 ? "rounded-t-lg rounded-b-none" : "rounded-t-none rounded-b-lg"
+        }`}
         onClick={(e) => {
           if (e.target === e.currentTarget) focusLine(s, lines.length - 1);
         }}
@@ -240,7 +242,7 @@ function DocEditor() {
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-6">
+      <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-[2px]">
         {sheets.map((_, s) => renderSheet(s))}
       </main>
     </div>
