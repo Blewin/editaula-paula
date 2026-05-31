@@ -282,7 +282,7 @@ function DocEditor() {
         {paragraphs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No paragraphs yet.</p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+          <div className="flex flex-col gap-2">
             {paragraphs.map((p, i) => (
               <div
                 key={i}
@@ -300,7 +300,7 @@ function DocEditor() {
                   const from = Number(e.dataTransfer.getData("text/plain"));
                   if (!Number.isNaN(from)) reorderSheetParagraphs(s, from, i);
                 }}
-                className="cursor-move rounded-md border bg-background p-3 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words min-h-[120px]"
+                className="cursor-move w-full rounded-md border bg-background px-4 py-3 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words"
               >
                 {p}
               </div>
