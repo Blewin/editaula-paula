@@ -278,7 +278,7 @@ function DocEditor() {
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-[2px]">
+      <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-[4px]">
         {sheets.map((_, s) => renderSheet(s))}
       </main>
     </div>
