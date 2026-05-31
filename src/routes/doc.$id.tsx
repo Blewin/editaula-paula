@@ -180,6 +180,42 @@ function DocEditor() {
         }
         return;
       }
+      if (e.key === "ArrowLeft" && pos === 0) {
+        if (safeActive > 0) {
+          e.preventDefault();
+          setCaretPos(lines[safeActive - 1].length);
+          setActive({ sheet: s, line: safeActive - 1 });
+        } else if (s > 0) {
+          e.preventDefault();
+          const prev = sheetLines(s - 1);
+          setCaretPos(prev[prev.length - 1].length);
+          setActive({ sheet: s - 1, line: prev.length - 1 });
+        }
+        return;
+      }
+      if (e.key === "ArrowRight" && pos === val.length) {
+        if (safeActive < lines.length - 1) {
+          e.preventDefault();
+          setCaretPos(0);
+          setActive({ sheet: s, line: safeActive + 1 });
+        } else if (s < sheets.length - 1) {
+          e.preventDefault();
+          setCaretPos(0);
+          setActive({ sheet: s + 1, line: 0 });
+        }
+        return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const before = val.slice(0, pos);
+        const after = val.slice(pos);
+        const next = [...lines];
+        next[safeActive] = before + "\t" + after;
+        writeSheet(s, next);
+        setCaretPos(pos + 1);
+        setActive({ sheet: s, line: safeActive });
+        return;
+      }
     };
 
     return (
