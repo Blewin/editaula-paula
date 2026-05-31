@@ -253,6 +253,63 @@ function DocEditor() {
     );
   };
 
+  const splitParagraphs = (s: string): string[] => {
+    const parts = s.split(/\n\s*\n/).map((p) => p.replace(/^\n+|\n+$/g, ""));
+    return parts.filter((p) => p.length > 0);
+  };
+  const joinParagraphs = (ps: string[]): string => ps.join("\n\n");
+
+  const reorderSheetParagraphs = (s: number, from: number, to: number) => {
+    const ps = splitParagraphs(sheets[s] ?? "");
+    if (from === to || from < 0 || from >= ps.length) return;
+    const [moved] = ps.splice(from, 1);
+    ps.splice(Math.max(0, Math.min(to, ps.length)), 0, moved);
+    const next = [...sheets];
+    next[s] = joinParagraphs(ps);
+    setSheets(next);
+  };
+
+  const renderTiles = (s: number) => {
+    const paragraphs = splitParagraphs(sheets[s] ?? "");
+    return (
+      <div
+        key={s}
+        className={`w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${
+          s === 0 ? "rounded-t-lg rounded-b-none" : "rounded-t-none rounded-b-lg"
+        }`}
+      >
+        {paragraphs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No paragraphs yet.</p>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+            {paragraphs.map((p, i) => (
+              <div
+                key={i}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", String(i));
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const from = Number(e.dataTransfer.getData("text/plain"));
+                  if (!Number.isNaN(from)) reorderSheetParagraphs(s, from, i);
+                }}
+                className="cursor-move rounded-md border bg-background p-3 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words min-h-[120px]"
+              >
+                {p}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
@@ -275,11 +332,19 @@ function DocEditor() {
             className="flex-1 bg-transparent text-lg font-semibold outline-none"
             placeholder="Untitled"
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setView(view === "document" ? "tiles" : "document")}
+            title={view === "document" ? "Switch to tiles view" : "Switch to document view"}
+          >
+            {view === "document" ? <LayoutGrid /> : <FileText />}
+          </Button>
         </div>
       </header>
 
       <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-[4px]">
-        {sheets.map((_, s) => renderSheet(s))}
+        {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
       </main>
     </div>
   );
