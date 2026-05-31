@@ -37,6 +37,7 @@ function DocEditor() {
     line: 0,
   });
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
+  const [view, setView] = React.useState<"document" | "tiles">("document");
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
