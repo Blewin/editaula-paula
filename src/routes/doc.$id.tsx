@@ -382,8 +382,8 @@ function DocEditor() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
-        <div className="mx-auto max-w-3xl px-6 py-3 flex items-center gap-3">
+      <header className="border-b sticky top-0 z-20 bg-background/80 backdrop-blur">
+        <div className="mx-auto max-w-5xl px-6 py-3 flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -413,9 +413,43 @@ function DocEditor() {
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-[4px]">
-        {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
-      </main>
+      <div className="flex-1 mx-auto w-full max-w-5xl px-6 py-8 flex gap-4">
+        <aside className="w-44 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2 mb-2"
+            onClick={addTab}
+          >
+            <Plus className="h-4 w-4" />
+            New tab
+          </Button>
+          <nav className="flex flex-col gap-1">
+            {tabs.map((t, i) => (
+              <button
+                key={i}
+                onClick={() => switchTab(i)}
+                onDoubleClick={() => {
+                  const newName = window.prompt("Rename tab", t.name);
+                  if (newName && newName.trim()) renameTab(i, newName.trim());
+                }}
+                className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
+                  i === activeTab
+                    ? "bg-accent text-accent-foreground font-medium"
+                    : "hover:bg-muted text-muted-foreground"
+                }`}
+                title="Click to switch, double-click to rename"
+              >
+                {t.name}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="flex-1 min-w-0 flex flex-col gap-[4px]">
+          {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
+        </main>
+      </div>
     </div>
   );
 }
