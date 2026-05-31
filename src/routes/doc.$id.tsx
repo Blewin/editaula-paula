@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, FileText, LayoutGrid } from "lucide-react";
+import { ArrowLeft, FileText, LayoutGrid, Plus } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,28 @@ export const Route = createFileRoute("/doc/$id")({
 });
 
 const SEP = "\u0001___SHEET_BREAK___\u0001";
+const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
+
+type Tab = { name: string; content: string };
+
+function parseTabs(content: string): Tab[] {
+  if (content.startsWith(TABS_MARKER)) {
+    try {
+      const data = JSON.parse(content.slice(TABS_MARKER.length));
+      if (Array.isArray(data) && data.length > 0) return data as Tab[];
+    } catch {
+      // fall through
+    }
+  }
+  return [{ name: "Tab 1", content }];
+}
+
+function serializeTabs(tabs: Tab[]): string {
+  return TABS_MARKER + JSON.stringify(tabs);
+}
 
 function splitSheets(content: string): string[] {
   const parts = content.split("\n" + SEP + "\n");
-  // Always have at least 2 sheets
   while (parts.length < 2) parts.push("");
   return parts;
 }
@@ -29,9 +47,14 @@ function DocEditor() {
   const doc = getItem(id);
 
   const [name, setName] = React.useState(doc?.name ?? "");
-  const [sheets, setSheets] = React.useState<string[]>(
-    doc && doc.type === "doc" ? splitSheets(doc.content) : ["", ""],
+  const initialTabs = React.useMemo(
+    () => (doc && doc.type === "doc" ? parseTabs(doc.content) : [{ name: "Tab 1", content: "" }]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id],
   );
+  const [tabs, setTabs] = React.useState<Tab[]>(initialTabs);
+  const [activeTab, setActiveTab] = React.useState(0);
+  const [sheets, setSheets] = React.useState<string[]>(splitSheets(initialTabs[0].content));
   const [active, setActive] = React.useState<{ sheet: number; line: number }>({
     sheet: 0,
     line: 0,
@@ -43,22 +66,68 @@ function DocEditor() {
   React.useEffect(() => {
     if (doc) {
       setName(doc.name);
-      if (doc.type === "doc") setSheets(splitSheets(doc.content));
+      if (doc.type === "doc") {
+        const t = parseTabs(doc.content);
+        setTabs(t);
+        setActiveTab(0);
+        setSheets(splitSheets(t[0].content));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Auto-save
+  const tabsWithCurrent = React.useMemo(() => {
+    const next = [...tabs];
+    if (next[activeTab]) {
+      next[activeTab] = { ...next[activeTab], content: joinSheets(sheets) };
+    }
+    return next;
+  }, [tabs, activeTab, sheets]);
+
   React.useEffect(() => {
     if (!doc || doc.type !== "doc") return;
     const t = setTimeout(() => {
-      const content = joinSheets(sheets);
+      const content = serializeTabs(tabsWithCurrent);
       if (name !== doc.name || content !== doc.content) {
         updateItem(id, { name, content } as Partial<Item>);
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [name, sheets, id, doc]);
+  }, [name, tabsWithCurrent, id, doc]);
+
+  const switchTab = (idx: number) => {
+    if (idx === activeTab) return;
+    const committed = [...tabs];
+    if (committed[activeTab]) {
+      committed[activeTab] = { ...committed[activeTab], content: joinSheets(sheets) };
+    }
+    setTabs(committed);
+    setActiveTab(idx);
+    setSheets(splitSheets(committed[idx]?.content ?? ""));
+    setActive({ sheet: 0, line: 0 });
+    setCaretPos(0);
+  };
+
+  const addTab = () => {
+    const committed = [...tabs];
+    if (committed[activeTab]) {
+      committed[activeTab] = { ...committed[activeTab], content: joinSheets(sheets) };
+    }
+    const newTab: Tab = { name: `Tab ${committed.length + 1}`, content: "" };
+    const next = [...committed, newTab];
+    setTabs(next);
+    setActiveTab(next.length - 1);
+    setSheets(splitSheets(""));
+    setActive({ sheet: 0, line: 0 });
+    setCaretPos(0);
+  };
+
+  const renameTab = (idx: number, newName: string) => {
+    const next = [...tabs];
+    if (!next[idx]) return;
+    next[idx] = { ...next[idx], name: newName };
+    setTabs(next);
+  };
 
   // Focus active line input and place caret
   React.useEffect(() => {
