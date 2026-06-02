@@ -244,14 +244,33 @@ function FolderTile({ color }: { color: string }) {
   );
 }
 
+const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
+const SHEET_SEP = "\u0001___SHEET_BREAK___\u0001";
+
+function extractPreviewText(content: string): string {
+  let text = content;
+  if (text.startsWith(TABS_MARKER)) {
+    try {
+      const tabs = JSON.parse(text.slice(TABS_MARKER.length));
+      if (Array.isArray(tabs) && tabs.length > 0) {
+        text = tabs[0]?.content ?? "";
+      }
+    } catch {
+      // fall through with original
+    }
+  }
+  // remove sheet separators
+  return text.split("\n").filter((l) => l.trim() !== SHEET_SEP).join("\n");
+}
+
 function DocThumbnail({ content }: { content: string }) {
-  // Show first ~12 lines plain-text preview
-  const preview = content
-    .split("\n")
+  const text = extractPreviewText(content);
+  const lines = text.split("\n");
+  const preview = lines
     .slice(0, 14)
     .map((l) => l.replace(/^#+\s*/, ""))
     .join("\n");
-  const firstHeading = content.split("\n").find((l) => l.startsWith("#"))?.replace(/^#+\s*/, "");
+  const firstHeading = lines.find((l) => l.startsWith("#"))?.replace(/^#+\s*/, "");
   return (
     <div className="flex-1 bg-white relative overflow-hidden">
       <div className="absolute inset-0 p-4 text-[7px] leading-[1.3] text-slate-700 font-mono whitespace-pre-wrap">
