@@ -324,10 +324,9 @@ function DocEditor() {
   };
 
   const splitParagraphs = (s: string): string[] => {
-    const parts = s.split(/\n\s*\n/).map((p) => p.replace(/^\n+|\n+$/g, ""));
-    return parts.filter((p) => p.length > 0);
+    return s.split("\n").filter((p) => p.trim().length > 0);
   };
-  const joinParagraphs = (ps: string[]): string => ps.join("\n\n");
+  const joinParagraphs = (ps: string[]): string => ps.join("\n");
 
   const reorderSheetParagraphs = (s: number, from: number, to: number) => {
     const ps = splitParagraphs(sheets[s] ?? "");
