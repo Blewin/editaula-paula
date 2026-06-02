@@ -416,8 +416,7 @@ function DocEditor() {
         <aside className="w-44 shrink-0">
           <Button
             variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2 mb-2"
+            className="w-full justify-start gap-2 mb-2 text-sm"
             onClick={addTab}
           >
             <Plus className="h-4 w-4" />
