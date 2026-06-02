@@ -40,6 +40,82 @@ function joinSheets(sheets: string[]): string {
   return sheets.join("\n" + SEP + "\n");
 }
 
+function TabItem({
+  name,
+  isActive,
+  onSelect,
+  onRename,
+}: {
+  name: string;
+  isActive: boolean;
+  onSelect: () => void;
+  onRename: (newName: string) => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(name);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  React.useEffect(() => {
+    if (!editing) setDraft(name);
+  }, [name, editing]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== name) onRename(trimmed);
+    else setDraft(name);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            setDraft(name);
+            setEditing(false);
+          }
+        }}
+        className={`text-left text-sm px-3 py-2 rounded-md outline-none border border-ring bg-background ${
+          isActive ? "font-medium" : ""
+        }`}
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        if (isActive) setEditing(true);
+        else onSelect();
+      }}
+      onDoubleClick={() => setEditing(true)}
+      className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
+        isActive
+          ? "bg-accent text-accent-foreground font-medium"
+          : "hover:bg-muted text-muted-foreground"
+      }`}
+      title="Click active tab or double-click to rename"
+    >
+      {name}
+    </button>
+  );
+}
+
 function DocEditor() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
