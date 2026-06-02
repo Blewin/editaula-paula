@@ -424,22 +424,13 @@ function DocEditor() {
           </Button>
           <nav className="flex flex-col gap-1">
             {tabs.map((t, i) => (
-              <button
+              <TabItem
                 key={i}
-                onClick={() => switchTab(i)}
-                onDoubleClick={() => {
-                  const newName = window.prompt("Rename tab", t.name);
-                  if (newName && newName.trim()) renameTab(i, newName.trim());
-                }}
-                className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
-                  i === activeTab
-                    ? "bg-accent text-accent-foreground font-medium"
-                    : "hover:bg-muted text-muted-foreground"
-                }`}
-                title="Click to switch, double-click to rename"
-              >
-                {t.name}
-              </button>
+                name={t.name}
+                isActive={i === activeTab}
+                onSelect={() => switchTab(i)}
+                onRename={(newName) => renameTab(i, newName)}
+              />
             ))}
           </nav>
         </aside>
