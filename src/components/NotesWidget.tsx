@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "app.notes.v1";
 
-function linkify(text: string): (string | JSX.Element)[] {
+function linkify(text: string): (string | React.ReactElement)[] {
   const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
-  const parts: (string | JSX.Element)[] = [];
+  const parts: (string | React.ReactElement)[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
