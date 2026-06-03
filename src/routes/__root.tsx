@@ -8,6 +8,8 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 
+import { NotesWidget } from "@/components/NotesWidget";
+
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -114,6 +116,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <NotesWidget />
     </QueryClientProvider>
   );
 }
