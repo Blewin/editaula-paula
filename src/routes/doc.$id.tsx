@@ -90,7 +90,7 @@ function TabItem({
             setEditing(false);
           }
         }}
-        className={`text-left text-sm px-3 py-2 rounded-md outline-none border border-ring bg-background ${
+        className={`text-left text-sm px-3 py-2 rounded-md outline-none ${
           isActive ? "font-medium" : ""
         }`}
       />
@@ -383,7 +383,7 @@ function DocEditor() {
               onChange={(e) => onLineChange(e.target.value)}
               onKeyDown={onKeyDown}
               rows={1}
-              className="block w-full resize-none bg-transparent text-sm outline-none my-1 overflow-hidden"
+              className="block w-full resize-none bg-transparent outline-none my-1 overflow-hidden"
               spellCheck={false}
             />
           ) : (
