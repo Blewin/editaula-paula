@@ -489,7 +489,7 @@ function DocEditor() {
         </div>
       </header>
 
-      <div className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 relative">
+      <div className={`flex-1 mx-auto w-full px-6 py-8 relative ${tabsVisible ? "max-w-4xl" : "max-w-3xl"}`}>
         <button
           onClick={() => setTabsVisible((v) => !v)}
           className="absolute left-6 top-8 z-10 h-8 w-8 inline-flex items-center justify-center rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm transition-colors"
