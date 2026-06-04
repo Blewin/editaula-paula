@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ChevronDown, ChevronUp, FileText, LayoutGrid, Plus } from "lucide-react";
+import { ArrowLeft, CornerDownLeft, FileText, LayoutGrid, Plus } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
@@ -489,43 +489,51 @@ function DocEditor() {
         </div>
       </header>
 
-      <div className="flex-1 mx-auto w-full max-w-5xl px-6 py-8 flex gap-4">
-        <aside className="w-44 shrink-0">
-          <button
-            onClick={() => setTabsVisible((v) => !v)}
-            className="w-full flex justify-center py-1 mb-1 text-muted-foreground hover:text-foreground transition-colors"
-            title={tabsVisible ? "Hide tabs" : "Show tabs"}
-            aria-label={tabsVisible ? "Hide tabs" : "Show tabs"}
-          >
-            {tabsVisible ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 mb-2 text-sm"
-            onClick={addTab}
-          >
-            <Plus className="h-4 w-4" />
-            New tab
-          </Button>
-          {tabsVisible && (
-            <nav className="flex flex-col gap-1">
-              {tabs.map((t, i) => (
-                <TabItem
-                  key={i}
-                  name={t.name}
-                  isActive={i === activeTab}
-                  onSelect={() => switchTab(i)}
-                  onRename={(newName) => renameTab(i, newName)}
-                />
-              ))}
-            </nav>
-          )}
-        </aside>
+      <div className="flex-1 mx-auto w-full max-w-5xl px-6 py-8 relative">
+        <button
+          onClick={() => setTabsVisible((v) => !v)}
+          className="absolute left-6 top-8 z-10 h-8 w-8 inline-flex items-center justify-center rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm transition-colors"
+          title={tabsVisible ? "Hide tabs" : "Show tabs"}
+          aria-label={tabsVisible ? "Hide tabs" : "Show tabs"}
+        >
+          <CornerDownLeft className={`h-4 w-4 transition-transform ${tabsVisible ? "" : "rotate-180"}`} />
+        </button>
 
-        <main className="flex-1 min-w-0 flex flex-col gap-[4px]">
-          {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
-        </main>
+        <div className="flex gap-4">
+          {tabsVisible && (
+            <aside className="w-44 shrink-0 pt-10">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2 mb-2 text-sm"
+                onClick={addTab}
+              >
+                <Plus className="h-4 w-4" />
+                New tab
+              </Button>
+              <nav className="flex flex-col gap-1">
+                {tabs.map((t, i) => (
+                  <TabItem
+                    key={i}
+                    name={t.name}
+                    isActive={i === activeTab}
+                    onSelect={() => switchTab(i)}
+                    onRename={(newName) => renameTab(i, newName)}
+                  />
+                ))}
+              </nav>
+            </aside>
+          )}
+
+          <main
+            className={`min-w-0 flex flex-col gap-[4px] ${
+              tabsVisible ? "flex-1" : "mx-auto w-full max-w-3xl"
+            }`}
+          >
+            {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
+          </main>
+        </div>
       </div>
+
     </div>
   );
 }
