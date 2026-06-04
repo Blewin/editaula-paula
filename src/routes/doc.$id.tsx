@@ -138,6 +138,7 @@ function DocEditor() {
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const [view, setView] = React.useState<"document" | "tiles">("document");
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const [tabsVisible, setTabsVisible] = React.useState(true);
 
   React.useEffect(() => {
     if (doc) {
