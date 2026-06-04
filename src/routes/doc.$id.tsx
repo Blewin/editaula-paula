@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ChevronDown, ChevronUp, FileText, LayoutGrid, Plus } from "lucide-react";
+import { ArrowLeft, CornerDownLeft, FileText, LayoutGrid, Plus } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
