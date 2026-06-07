@@ -39,12 +39,9 @@ function Browser() {
   const navigate = useNavigate();
   const currentFolder = folder ?? null;
   const trail = React.useMemo(() => getBreadcrumb(currentFolder), [items, currentFolder]);
-  const visible = items
-    .filter((i) => i.parentId === currentFolder)
-    .sort((a, b) => {
-      if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
+  const visible = items.filter((i) => i.parentId === currentFolder);
+  const [dragId, setDragId] = React.useState<string | null>(null);
+  const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
 
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
