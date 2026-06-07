@@ -479,7 +479,7 @@ function DocEditor() {
             placeholder="Untitled"
           />
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={() => setView(view === "document" ? "tiles" : "document")}
             title={view === "document" ? "Switch to tiles view" : "Switch to document view"}
