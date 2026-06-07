@@ -138,10 +138,22 @@ function Tile({
   item,
   onOpenFolder,
   onOpenDoc,
+  isDragging,
+  dropIndicator,
+  onDragStart,
+  onDragEnd,
+  onDragOverTile,
+  onDropTile,
 }: {
   item: Item;
   onOpenFolder: (id: string) => void;
   onOpenDoc: (id: string) => void;
+  isDragging: boolean;
+  dropIndicator: "before" | "after" | null;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDragOverTile: (pos: "before" | "after") => void;
+  onDropTile: () => void;
 }) {
   const [editing, setEditing] = React.useState(false);
   const [name, setName] = React.useState(item.name);
@@ -164,9 +176,29 @@ function Tile({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          draggable={!editing}
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", item.id);
+            onDragStart();
+          }}
+          onDragEnd={onDragEnd}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            const rect = e.currentTarget.getBoundingClientRect();
+            const pos = e.clientX - rect.left < rect.width / 2 ? "before" : "after";
+            onDragOverTile(pos);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            onDropTile();
+          }}
           onDoubleClick={onActivate}
           onClick={onActivate}
-          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-[270px]"
+          className={`group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-[270px] ${
+            isDragging ? "opacity-40" : ""
+          } ${dropIndicator === "before" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:-4px_0_0_0_var(--primary)]" : ""} ${dropIndicator === "after" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:4px_0_0_0_var(--primary)]" : ""}`}
         >
           <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
             {item.type === "folder" ? (
