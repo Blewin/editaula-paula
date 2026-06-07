@@ -484,7 +484,7 @@ function DocEditor() {
             onClick={() => setView(view === "document" ? "tiles" : "document")}
             title={view === "document" ? "Switch to tiles view" : "Switch to document view"}
           >
-            {view === "document" ? <LayoutGrid /> : <FileText />}
+            {view === "document" ? <AlignJustify /> : <FileText />}
           </Button>
         </div>
       </header>
