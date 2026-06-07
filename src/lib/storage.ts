@@ -121,6 +121,20 @@ export function deleteItem(id: string) {
   write(items);
 }
 
+export function reorderItem(activeId: string, overId: string, position: "before" | "after" = "before") {
+  if (activeId === overId) return;
+  const items = read();
+  const activeIdx = items.findIndex((i) => i.id === activeId);
+  const overIdx = items.findIndex((i) => i.id === overId);
+  if (activeIdx === -1 || overIdx === -1) return;
+  if (items[activeIdx].parentId !== items[overIdx].parentId) return;
+  const [moved] = items.splice(activeIdx, 1);
+  const newOverIdx = items.findIndex((i) => i.id === overId);
+  const insertAt = position === "after" ? newOverIdx + 1 : newOverIdx;
+  items.splice(insertAt, 0, moved);
+  write(items);
+}
+
 export function getItem(id: string): Item | undefined {
   return read().find((i) => i.id === id);
 }

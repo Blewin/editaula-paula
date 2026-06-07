@@ -7,6 +7,7 @@ import {
   deleteItem,
   FOLDER_COLORS,
   getBreadcrumb,
+  reorderItem,
   updateItem,
   useItems,
   type Item,
@@ -38,12 +39,9 @@ function Browser() {
   const navigate = useNavigate();
   const currentFolder = folder ?? null;
   const trail = React.useMemo(() => getBreadcrumb(currentFolder), [items, currentFolder]);
-  const visible = items
-    .filter((i) => i.parentId === currentFolder)
-    .sort((a, b) => {
-      if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
+  const visible = items.filter((i) => i.parentId === currentFolder);
+  const [dragId, setDragId] = React.useState<string | null>(null);
+  const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
 
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
@@ -103,7 +101,31 @@ function Browser() {
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
             {visible.map((item) => (
-              <Tile key={item.id} item={item} onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })} onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })} />
+              <Tile
+                key={item.id}
+                item={item}
+                isDragging={dragId === item.id}
+                dropIndicator={dropTarget?.id === item.id ? dropTarget.position : null}
+                onDragStart={() => setDragId(item.id)}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setDropTarget(null);
+                }}
+                onDragOverTile={(pos) => {
+                  if (dragId && dragId !== item.id) {
+                    setDropTarget({ id: item.id, position: pos });
+                  }
+                }}
+                onDropTile={() => {
+                  if (dragId && dragId !== item.id) {
+                    reorderItem(dragId, item.id, dropTarget?.position ?? "before");
+                  }
+                  setDragId(null);
+                  setDropTarget(null);
+                }}
+                onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
+                onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })}
+              />
             ))}
           </div>
         )}
@@ -116,10 +138,22 @@ function Tile({
   item,
   onOpenFolder,
   onOpenDoc,
+  isDragging,
+  dropIndicator,
+  onDragStart,
+  onDragEnd,
+  onDragOverTile,
+  onDropTile,
 }: {
   item: Item;
   onOpenFolder: (id: string) => void;
   onOpenDoc: (id: string) => void;
+  isDragging: boolean;
+  dropIndicator: "before" | "after" | null;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDragOverTile: (pos: "before" | "after") => void;
+  onDropTile: () => void;
 }) {
   const [editing, setEditing] = React.useState(false);
   const [name, setName] = React.useState(item.name);
@@ -142,9 +176,29 @@ function Tile({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          draggable={!editing}
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", item.id);
+            onDragStart();
+          }}
+          onDragEnd={onDragEnd}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            const rect = e.currentTarget.getBoundingClientRect();
+            const pos = e.clientX - rect.left < rect.width / 2 ? "before" : "after";
+            onDragOverTile(pos);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            onDropTile();
+          }}
           onDoubleClick={onActivate}
           onClick={onActivate}
-          className="group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-[270px]"
+          className={`group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-[270px] ${
+            isDragging ? "opacity-40" : ""
+          } ${dropIndicator === "before" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:-4px_0_0_0_var(--primary)]" : ""} ${dropIndicator === "after" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:4px_0_0_0_var(--primary)]" : ""}`}
         >
           <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
             {item.type === "folder" ? (
