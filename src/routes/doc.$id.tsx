@@ -526,7 +526,7 @@ function DocEditor() {
 
           <main
             className={`min-w-0 flex flex-col gap-[4px] ${
-              tabsVisible ? "flex-1" : "mx-auto w-full max-w-3xl"
+              tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
           >
             {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
