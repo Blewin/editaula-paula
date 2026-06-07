@@ -7,6 +7,7 @@ import {
   deleteItem,
   FOLDER_COLORS,
   getBreadcrumb,
+  reorderItem,
   updateItem,
   useItems,
   type Item,
