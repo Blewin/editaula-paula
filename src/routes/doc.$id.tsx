@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, CornerDownLeft, FileText, LayoutGrid, Plus } from "lucide-react";
+import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
@@ -484,7 +484,7 @@ function DocEditor() {
             onClick={() => setView(view === "document" ? "tiles" : "document")}
             title={view === "document" ? "Switch to tiles view" : "Switch to document view"}
           >
-            {view === "document" ? <LayoutGrid /> : <FileText />}
+            {view === "document" ? <AlignJustify /> : <FileText />}
           </Button>
         </div>
       </header>
