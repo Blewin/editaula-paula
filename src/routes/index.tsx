@@ -295,18 +295,49 @@ function Tile({
   );
 }
 
+function shiftHue(hex: string, degrees: number, lightDelta = 0): string {
+  const m = hex.replace("#", "");
+  const r = parseInt(m.slice(0, 2), 16) / 255;
+  const g = parseInt(m.slice(2, 4), 16) / 255;
+  const b = parseInt(m.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  const d = max - min;
+  if (d !== 0) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r:
+        h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+        break;
+      case g:
+        h = ((b - r) / d + 2) * 60;
+        break;
+      default:
+        h = ((r - g) / d + 4) * 60;
+    }
+  }
+  const nh = (h + degrees + 360) % 360;
+  const nl = Math.max(0, Math.min(1, l + lightDelta));
+  return `hsl(${nh.toFixed(1)}, ${(s * 100).toFixed(1)}%, ${(nl * 100).toFixed(1)}%)`;
+}
+
 function FolderTile({ color }: { color: string }) {
+  const warm = shiftHue(color, 25, 0.08);
+  const cool = shiftHue(color, -30, -0.12);
   return (
     <div
       className="flex-1 relative overflow-hidden"
       style={{
-        background: `radial-gradient(120% 100% at 80% 20%, ${color}dd 0%, ${color} 60%, ${color}88 100%)`,
+        background: `radial-gradient(130% 110% at 78% 18%, ${warm} 0%, ${color} 55%, ${cool} 100%)`,
       }}
     >
       <div
-        className="absolute inset-0 opacity-30"
+        className="absolute inset-0 mix-blend-overlay opacity-40"
         style={{
-          background: `linear-gradient(160deg, transparent 40%, rgba(255,255,255,0.25) 60%, transparent 70%)`,
+          background: `linear-gradient(160deg, ${shiftHue(color, 40, 0.15)} 0%, transparent 55%, ${shiftHue(color, -50, -0.18)} 100%)`,
         }}
       />
     </div>
