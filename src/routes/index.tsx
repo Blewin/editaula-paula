@@ -254,7 +254,7 @@ function Tile({
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent>
-                    <div className="grid grid-cols-4 gap-1.5 p-2">
+                    <div className="grid grid-cols-5 gap-1.5 p-2">
                       {FOLDER_COLORS.map((c) => (
                         <button
                           key={c}
