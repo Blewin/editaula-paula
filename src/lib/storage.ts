@@ -22,12 +22,29 @@ const KEY = "md-editor-items-v1";
 
 export const FOLDER_COLORS = [
   "#94a3b8", // slate
+  "#64748b", // slate dark
   "#f59e0b", // amber
+  "#fbbf24", // amber light
+  "#d97706", // amber dark
   "#10b981", // emerald
+  "#34d399", // emerald light
+  "#059669", // emerald dark
+  "#84cc16", // lime
+  "#22c55e", // green
   "#3b82f6", // blue
+  "#60a5fa", // blue light
+  "#1d4ed8", // blue dark
+  "#0ea5e9", // sky
+  "#6366f1", // indigo
   "#a855f7", // purple
+  "#c084fc", // purple light
+  "#7c3aed", // violet
+  "#d946ef", // fuchsia
   "#ef4444", // red
+  "#f87171", // red light
+  "#b91c1c", // red dark
   "#ec4899", // pink
+  "#f472b6", // pink light
   "#14b8a6", // teal
 ];
 
