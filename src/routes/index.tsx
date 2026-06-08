@@ -324,9 +324,33 @@ function shiftHue(hex: string, degrees: number, lightDelta = 0): string {
   return `hsl(${nh.toFixed(1)}, ${(s * 100).toFixed(1)}%, ${(nl * 100).toFixed(1)}%)`;
 }
 
+function getHue(hex: string): number {
+  const m = hex.replace("#", "");
+  const r = parseInt(m.slice(0, 2), 16) / 255;
+  const g = parseInt(m.slice(2, 4), 16) / 255;
+  const b = parseInt(m.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return 0;
+  let h = 0;
+  switch (max) {
+    case r: h = ((g - b) / d + (g < b ? 6 : 0)) * 60; break;
+    case g: h = ((b - r) / d + 2) * 60; break;
+    default: h = ((r - g) / d + 4) * 60;
+  }
+  return h;
+}
+
 function FolderTile({ color }: { color: string }) {
-  const warm = shiftHue(color, 25, 0.08);
-  const cool = shiftHue(color, -30, -0.12);
+  const hue = getHue(color);
+  // Yellows/ambers (~35-75°) blow out into near-white when lightened; dampen the contrast there.
+  const isYellow = hue >= 35 && hue <= 75;
+  const k = isYellow ? 0.4 : 1;
+  const warm = shiftHue(color, 25 * k, 0.08 * k);
+  const cool = shiftHue(color, -30 * k, -0.12 * k);
+  const overlayWarm = shiftHue(color, 40 * k, 0.15 * k);
+  const overlayCool = shiftHue(color, -50 * k, -0.18 * k);
   return (
     <div
       className="flex-1 relative overflow-hidden"
@@ -337,7 +361,7 @@ function FolderTile({ color }: { color: string }) {
       <div
         className="absolute inset-0 mix-blend-overlay opacity-40"
         style={{
-          background: `linear-gradient(160deg, ${shiftHue(color, 40, 0.15)} 0%, transparent 55%, ${shiftHue(color, -50, -0.18)} 100%)`,
+          background: `linear-gradient(160deg, ${overlayWarm} 0%, transparent 55%, ${overlayCool} 100%)`,
         }}
       />
     </div>
