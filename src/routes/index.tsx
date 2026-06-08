@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal } from "lucide-react";
 import {
   createDoc,
   createFolder,
@@ -14,15 +14,16 @@ import {
 } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+} from "@/components/ui/dropdown-menu";
 
 type Search = { folder?: string };
 
@@ -173,110 +174,124 @@ function Tile({
   };
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          draggable={!editing}
-          onDragStart={(e) => {
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("text/plain", item.id);
-            onDragStart();
-          }}
-          onDragEnd={onDragEnd}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
-            const rect = e.currentTarget.getBoundingClientRect();
-            const pos = e.clientX - rect.left < rect.width / 2 ? "before" : "after";
-            onDragOverTile(pos);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            onDropTile();
-          }}
-          onDoubleClick={onActivate}
-          onClick={onActivate}
-          className={`group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-[270px] ${
-            isDragging ? "opacity-40" : ""
-          } ${dropIndicator === "before" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:-4px_0_0_0_var(--primary)]" : ""} ${dropIndicator === "after" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:4px_0_0_0_var(--primary)]" : ""}`}
-        >
-          <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
-            {item.type === "folder" ? (
-              <Folder className="size-4 shrink-0" style={{ color: item.color }} />
-            ) : (
-              <FileText className="size-4 shrink-0 text-muted-foreground" />
-            )}
-            {editing ? (
-              <input
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitRename();
-                  if (e.key === "Escape") {
-                    setName(item.name);
-                    setEditing(false);
-                  }
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-primary"
-              />
-            ) : (
-              <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
-            )}
-          </div>
-          {item.type === "folder" ? (
-            <FolderTile color={item.color} />
-          ) : (
-            <DocThumbnail content={item.content} />
-          )}
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-52">
-        <ContextMenuItem onSelect={() => setEditing(true)}>
-          <Pencil className="size-4" /> Rename
-        </ContextMenuItem>
-        {item.type === "folder" && (
-          <ContextMenuSub>
-            <ContextMenuSubTrigger>
-              <span
-                className="size-4 rounded-full border"
-                style={{ backgroundColor: item.color }}
-              />
-              Color
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent>
-              <div className="grid grid-cols-4 gap-1.5 p-2">
-                {FOLDER_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => updateItem(item.id, { color: c } as Partial<Item>)}
-                    className="size-7 rounded-full border-2 border-transparent hover:border-foreground transition-colors"
-                    style={{
-                      backgroundColor: c,
-                      borderColor: item.color === c ? "var(--foreground)" : undefined,
-                    }}
-                    aria-label={c}
-                  />
-                ))}
-              </div>
-            </ContextMenuSubContent>
-          </ContextMenuSub>
+    <div
+      draggable={!editing}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", item.id);
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const rect = e.currentTarget.getBoundingClientRect();
+        const pos = e.clientX - rect.left < rect.width / 2 ? "before" : "after";
+        onDragOverTile(pos);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropTile();
+      }}
+      onDoubleClick={onActivate}
+      onClick={onActivate}
+      className={`group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-[270px] ${
+        isDragging ? "opacity-40" : ""
+      } ${dropIndicator === "before" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:-4px_0_0_0_var(--primary)]" : ""} ${dropIndicator === "after" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:4px_0_0_0_var(--primary)]" : ""}`}
+    >
+      <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
+        {item.type === "folder" ? (
+          <Folder className="size-4 shrink-0" style={{ color: item.color }} />
+        ) : (
+          <FileText className="size-4 shrink-0 text-muted-foreground" />
         )}
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onSelect={() => {
-            if (confirm(`Delete "${item.name}"${item.type === "folder" ? " and its contents" : ""}?`)) {
-              deleteItem(item.id);
-            }
-          }}
-          className="text-destructive focus:text-destructive"
-        >
-          <Trash2 className="size-4" /> Delete
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+        {editing ? (
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") {
+                setName(item.name);
+                setEditing(false);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-primary"
+          />
+        ) : (
+          <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              className="shrink-0 size-6 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              aria-label="More options"
+            >
+              <MoreHorizontal className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-52"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DropdownMenuItem onSelect={() => setEditing(true)}>
+              <Pencil className="size-4" /> Rename
+            </DropdownMenuItem>
+            {item.type === "folder" && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <span
+                    className="size-4 rounded-full border"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  Color
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    <div className="grid grid-cols-4 gap-1.5 p-2">
+                      {FOLDER_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => updateItem(item.id, { color: c } as Partial<Item>)}
+                          className="size-7 rounded-full border-2 border-transparent hover:border-foreground transition-colors"
+                          style={{
+                            backgroundColor: c,
+                            borderColor: item.color === c ? "var(--foreground)" : undefined,
+                          }}
+                          aria-label={c}
+                        />
+                      ))}
+                    </div>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => {
+                if (confirm(`Delete "${item.name}"${item.type === "folder" ? " and its contents" : ""}?`)) {
+                  deleteItem(item.id);
+                }
+              }}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="size-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {item.type === "folder" ? (
+        <FolderTile color={item.color} />
+      ) : (
+        <DocThumbnail content={item.content} />
+      )}
+    </div>
   );
 }
 
