@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal, Star } from "lucide-react";
 import {
   createDoc,
   createFolder,
@@ -201,9 +201,15 @@ function Tile({
     >
       <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
         {item.type === "folder" ? (
-          <Folder className="size-4 shrink-0" style={{ color: item.color }} />
+          <Folder
+            className="size-4 shrink-0"
+            style={{ color: item.color, fill: item.starred ? item.color : "none", fillOpacity: item.starred ? 0.25 : undefined }}
+          />
         ) : (
-          <FileText className="size-4 shrink-0 text-muted-foreground" />
+          <FileText
+            className="size-4 shrink-0 text-muted-foreground"
+            style={item.starred ? { fill: "currentColor", fillOpacity: 0.18 } : undefined}
+          />
         )}
         {editing ? (
           <input
@@ -240,6 +246,15 @@ function Tile({
             className="w-52"
             onClick={(e) => e.stopPropagation()}
           >
+            <DropdownMenuItem
+              onSelect={() => updateItem(item.id, { starred: !item.starred } as Partial<Item>)}
+            >
+              <Star
+                className="size-4"
+                style={item.starred ? { fill: "currentColor", fillOpacity: 0.3 } : undefined}
+              />
+              {item.starred ? "Unstar" : "Star"}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setEditing(true)}>
               <Pencil className="size-4" /> Rename
             </DropdownMenuItem>

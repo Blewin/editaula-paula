@@ -8,6 +8,7 @@ export type Item =
       parentId: string | null;
       content: string;
       updatedAt: number;
+      starred?: boolean;
     }
   | {
       id: string;
@@ -16,6 +17,7 @@ export type Item =
       parentId: string | null;
       color: string;
       updatedAt: number;
+      starred?: boolean;
     };
 
 const KEY = "md-editor-items-v1";
