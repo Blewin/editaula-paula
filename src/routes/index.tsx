@@ -251,12 +251,24 @@ function ViewButton({
   active,
   onClick,
   onDelete,
+  isEditing,
+  editName,
+  onEditStart,
+  onEditChange,
+  onEditCommit,
+  onEditCancel,
 }: {
   icon: React.ReactNode;
   label: string;
   active: boolean;
   onClick: () => void;
   onDelete?: () => void;
+  isEditing?: boolean;
+  editName?: string;
+  onEditStart?: () => void;
+  onEditChange?: (name: string) => void;
+  onEditCommit?: () => void;
+  onEditCancel?: () => void;
 }) {
   return (
     <div
@@ -264,10 +276,31 @@ function ViewButton({
         active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
       onClick={onClick}
+      onDoubleClick={(e) => {
+        if (onEditStart) {
+          e.stopPropagation();
+          onEditStart();
+        }
+      }}
     >
       <span className="shrink-0">{icon}</span>
-      <span className="flex-1 truncate">{label}</span>
-      {onDelete && (
+      {isEditing ? (
+        <input
+          autoFocus
+          value={editName ?? ""}
+          onChange={(e) => onEditChange?.(e.target.value)}
+          onBlur={onEditCommit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onEditCommit?.();
+            if (e.key === "Escape") onEditCancel?.();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-primary"
+        />
+      ) : (
+        <span className="flex-1 truncate">{label}</span>
+      )}
+      {onDelete && !isEditing && (
         <button
           onClick={(e) => {
             e.stopPropagation();
