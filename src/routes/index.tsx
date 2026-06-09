@@ -53,6 +53,8 @@ function Browser() {
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
   const [panelOpen, setPanelOpen] = React.useState(true);
+  const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
+  const [editingViewName, setEditingViewName] = React.useState("");
 
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
@@ -64,9 +66,15 @@ function Browser() {
   };
 
   const handleAddView = () => {
-    const name = prompt("Name this view (bookmarks the current folder):");
-    if (!name?.trim()) return;
-    createView(name.trim(), currentFolder);
+    const nums = views.map((v) => {
+      const m = v.name.match(/^View (\d+)$/);
+      return m ? parseInt(m[1], 10) : 0;
+    });
+    const next = Math.max(0, ...nums) + 1;
+    const name = `View ${next}`;
+    const id = createView(name, currentFolder);
+    setEditingViewId(id);
+    setEditingViewName(name);
   };
 
   return (
