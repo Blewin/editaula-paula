@@ -201,9 +201,15 @@ function Tile({
     >
       <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
         {item.type === "folder" ? (
-          <Folder className="size-4 shrink-0" style={{ color: item.color }} />
+          <Folder
+            className="size-4 shrink-0"
+            style={{ color: item.color, fill: item.starred ? item.color : "none", fillOpacity: item.starred ? 0.25 : undefined }}
+          />
         ) : (
-          <FileText className="size-4 shrink-0 text-muted-foreground" />
+          <FileText
+            className="size-4 shrink-0 text-muted-foreground"
+            style={item.starred ? { fill: "currentColor", fillOpacity: 0.18 } : undefined}
+          />
         )}
         {editing ? (
           <input
