@@ -11,6 +11,7 @@ import {
   getBreadcrumb,
   reorderItem,
   updateItem,
+  updateView,
   useItems,
   useViews,
   type Item,
