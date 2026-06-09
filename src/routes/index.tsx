@@ -11,6 +11,7 @@ import {
   getBreadcrumb,
   reorderItem,
   updateItem,
+  updateView,
   useItems,
   useViews,
   type Item,
@@ -52,6 +53,8 @@ function Browser() {
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
   const [panelOpen, setPanelOpen] = React.useState(true);
+  const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
+  const [editingViewName, setEditingViewName] = React.useState("");
 
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
@@ -63,9 +66,15 @@ function Browser() {
   };
 
   const handleAddView = () => {
-    const name = prompt("Name this view (bookmarks the current folder):");
-    if (!name?.trim()) return;
-    createView(name.trim(), currentFolder);
+    const nums = views.map((v) => {
+      const m = v.name.match(/^View (\d+)$/);
+      return m ? parseInt(m[1], 10) : 0;
+    });
+    const next = Math.max(0, ...nums) + 1;
+    const name = `View ${next}`;
+    const id = createView(name, currentFolder);
+    setEditingViewId(id);
+    setEditingViewName(name);
   };
 
   return (
@@ -107,6 +116,19 @@ function Browser() {
                 onDelete={() => {
                   if (confirm(`Remove view "${v.name}"?`)) deleteView(v.id);
                 }}
+                isEditing={editingViewId === v.id}
+                editName={editingViewName}
+                onEditStart={() => {
+                  setEditingViewId(v.id);
+                  setEditingViewName(v.name);
+                }}
+                onEditChange={setEditingViewName}
+                onEditCommit={() => {
+                  const trimmed = editingViewName.trim();
+                  if (trimmed && trimmed !== v.name) updateView(v.id, { name: trimmed });
+                  setEditingViewId(null);
+                }}
+                onEditCancel={() => setEditingViewId(null)}
               />
             ))}
             <button
@@ -229,12 +251,24 @@ function ViewButton({
   active,
   onClick,
   onDelete,
+  isEditing,
+  editName,
+  onEditStart,
+  onEditChange,
+  onEditCommit,
+  onEditCancel,
 }: {
   icon: React.ReactNode;
   label: string;
   active: boolean;
   onClick: () => void;
   onDelete?: () => void;
+  isEditing?: boolean;
+  editName?: string;
+  onEditStart?: () => void;
+  onEditChange?: (name: string) => void;
+  onEditCommit?: () => void;
+  onEditCancel?: () => void;
 }) {
   return (
     <div
@@ -242,10 +276,31 @@ function ViewButton({
         active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
       onClick={onClick}
+      onDoubleClick={(e) => {
+        if (onEditStart) {
+          e.stopPropagation();
+          onEditStart();
+        }
+      }}
     >
       <span className="shrink-0">{icon}</span>
-      <span className="flex-1 truncate">{label}</span>
-      {onDelete && (
+      {isEditing ? (
+        <input
+          autoFocus
+          value={editName ?? ""}
+          onChange={(e) => onEditChange?.(e.target.value)}
+          onBlur={onEditCommit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onEditCommit?.();
+            if (e.key === "Escape") onEditCancel?.();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-primary"
+        />
+      ) : (
+        <span className="flex-1 truncate">{label}</span>
+      )}
+      {onDelete && !isEditing && (
         <button
           onClick={(e) => {
             e.stopPropagation();
