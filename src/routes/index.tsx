@@ -343,10 +343,7 @@ function getHue(hex: string): number {
 }
 
 function FolderTile({ color }: { color: string }) {
-  const hue = getHue(color);
-  // Yellows/ambers (~35-75°) blow out into near-white when lightened; dampen the contrast there.
-  const isYellow = hue >= 35 && hue <= 75;
-  const k = isYellow ? 0.4 : 1;
+  const k = 0.4;
   const warm = shiftHue(color, 25 * k, 0.08 * k);
   const cool = shiftHue(color, -30 * k, -0.12 * k);
   const overlayWarm = shiftHue(color, 40 * k, 0.15 * k);
