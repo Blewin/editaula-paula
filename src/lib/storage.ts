@@ -221,6 +221,14 @@ export function createView(name: string, folderId: string | null): string {
   return id;
 }
 
+export function updateView(id: string, patch: Partial<Omit<View, "id">>) {
+  const views = readViews();
+  const idx = views.findIndex((v) => v.id === id);
+  if (idx === -1) return;
+  views[idx] = { ...views[idx], ...patch };
+  writeViews(views);
+}
+
 export function deleteView(id: string) {
   writeViews(readViews().filter((v) => v.id !== id));
 }
