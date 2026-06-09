@@ -116,6 +116,19 @@ function Browser() {
                 onDelete={() => {
                   if (confirm(`Remove view "${v.name}"?`)) deleteView(v.id);
                 }}
+                isEditing={editingViewId === v.id}
+                editName={editingViewName}
+                onEditStart={() => {
+                  setEditingViewId(v.id);
+                  setEditingViewName(v.name);
+                }}
+                onEditChange={setEditingViewName}
+                onEditCommit={() => {
+                  const trimmed = editingViewName.trim();
+                  if (trimmed && trimmed !== v.name) updateView(v.id, { name: trimmed });
+                  setEditingViewId(null);
+                }}
+                onEditCancel={() => setEditingViewId(null)}
               />
             ))}
             <button
