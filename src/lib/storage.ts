@@ -171,3 +171,56 @@ export function getBreadcrumb(folderId: string | null): { id: string | null; nam
   trail.unshift({ id: null, name: "Home" });
   return trail;
 }
+
+// ---------- Views ----------
+
+export type View = {
+  id: string;
+  name: string;
+  // null = bookmark to Home; otherwise a folder id
+  folderId: string | null;
+};
+
+const VIEWS_KEY = "md-editor-views-v1";
+
+function readViews(): View[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(VIEWS_KEY);
+    return raw ? (JSON.parse(raw) as View[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeViews(views: View[]) {
+  localStorage.setItem(VIEWS_KEY, JSON.stringify(views));
+  window.dispatchEvent(new Event("md-views-changed"));
+}
+
+export function useViews() {
+  const [views, setViews] = React.useState<View[]>(() => readViews());
+  React.useEffect(() => {
+    const sync = () => setViews(readViews());
+    sync();
+    window.addEventListener("md-views-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("md-views-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return views;
+}
+
+export function createView(name: string, folderId: string | null): string {
+  const views = readViews();
+  const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  views.push({ id, name, folderId });
+  writeViews(views);
+  return id;
+}
+
+export function deleteView(id: string) {
+  writeViews(readViews().filter((v) => v.id !== id));
+}
