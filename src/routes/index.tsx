@@ -246,6 +246,15 @@ function Tile({
             className="w-52"
             onClick={(e) => e.stopPropagation()}
           >
+            <DropdownMenuItem
+              onSelect={() => updateItem(item.id, { starred: !item.starred } as Partial<Item>)}
+            >
+              <Star
+                className="size-4"
+                style={item.starred ? { fill: "currentColor", fillOpacity: 0.3 } : undefined}
+              />
+              {item.starred ? "Unstar" : "Star"}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setEditing(true)}>
               <Pencil className="size-4" /> Rename
             </DropdownMenuItem>
