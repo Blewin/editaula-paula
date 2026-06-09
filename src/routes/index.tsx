@@ -1,15 +1,18 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal, Star } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal, Star, Plus, Home, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   createDoc,
   createFolder,
+  createView,
   deleteItem,
+  deleteView,
   FOLDER_COLORS,
   getBreadcrumb,
   reorderItem,
   updateItem,
   useItems,
+  useViews,
   type Item,
 } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
@@ -25,24 +28,30 @@ import {
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 
-type Search = { folder?: string };
+type Search = { folder?: string; view?: string };
 
 export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     folder: typeof s.folder === "string" ? s.folder : undefined,
+    view: typeof s.view === "string" ? s.view : undefined,
   }),
   component: Browser,
 });
 
 function Browser() {
-  const { folder } = Route.useSearch();
+  const { folder, view } = Route.useSearch();
   const items = useItems();
+  const views = useViews();
   const navigate = useNavigate();
   const currentFolder = folder ?? null;
+  const isStarred = view === "starred";
   const trail = React.useMemo(() => getBreadcrumb(currentFolder), [items, currentFolder]);
-  const visible = items.filter((i) => i.parentId === currentFolder);
+  const visible = isStarred
+    ? items.filter((i) => i.starred)
+    : items.filter((i) => i.parentId === currentFolder);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
+  const [panelOpen, setPanelOpen] = React.useState(true);
 
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
@@ -53,87 +62,205 @@ function Browser() {
     createFolder(currentFolder);
   };
 
+  const handleAddView = () => {
+    const name = prompt("Name this view (bookmarks the current folder):");
+    if (!name?.trim()) return;
+    createView(name.trim(), currentFolder);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleNewFolder}>
-              <FolderPlus /> New folder
-            </Button>
-            <Button onClick={handleNewDoc}>
-              <FilePlus2 /> New document
-            </Button>
+    <div className="min-h-screen bg-background flex">
+      {panelOpen && (
+        <aside className="w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
+          <div className="px-4 py-4 flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Views</h2>
+            <button
+              onClick={() => setPanelOpen(false)}
+              className="size-6 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              aria-label="Hide panel"
+            >
+              <PanelLeftClose className="size-4" />
+            </button>
           </div>
-          <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
-          <div className="w-[1px]" />
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-6 py-6">
-        <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
-          {trail.map((b, i) => (
-            <React.Fragment key={b.id ?? "root"}>
-              {i > 0 && <ChevronRight className="size-6" />}
-              <button
-                className="hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
+          <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
+            <ViewButton
+              icon={<Home className="size-4" />}
+              label="Home"
+              active={!isStarred && !currentFolder}
+              onClick={() => navigate({ to: "/", search: {} })}
+            />
+            <ViewButton
+              icon={<Star className="size-4" style={{ fill: "currentColor", fillOpacity: 0.3 }} />}
+              label="Starred"
+              active={isStarred}
+              onClick={() => navigate({ to: "/", search: { view: "starred" } })}
+            />
+            {views.map((v) => (
+              <ViewButton
+                key={v.id}
+                icon={<Folder className="size-4" />}
+                label={v.name}
+                active={!isStarred && currentFolder === v.folderId && view === undefined}
                 onClick={() =>
-                  navigate({ to: "/", search: b.id ? { folder: b.id } : {} })
+                  navigate({ to: "/", search: v.folderId ? { folder: v.folderId } : {} })
                 }
-              >
-                {b.name}
-              </button>
-            </React.Fragment>
-          ))}
-        </nav>
+                onDelete={() => {
+                  if (confirm(`Remove view "${v.name}"?`)) deleteView(v.id);
+                }}
+              />
+            ))}
+            <button
+              onClick={handleAddView}
+              className="w-full mt-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            >
+              <Plus className="size-4" /> Add view
+            </button>
+          </nav>
+        </aside>
+      )}
 
-        {visible.length === 0 ? (
-          <div className="text-center py-24 text-muted-foreground">
-            <p className="mb-4">This folder is empty.</p>
-            <div className="flex justify-center gap-2">
-              <Button variant="outline" onClick={handleNewFolder}>
+      <div className="flex-1 min-w-0">
+        <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
+          <div className="px-6 py-4 flex items-center justify-between gap-4">
+            <div className="flex gap-2 items-center">
+              {!panelOpen && (
+                <button
+                  onClick={() => setPanelOpen(true)}
+                  className="size-9 inline-flex items-center justify-center rounded-md border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  aria-label="Show panel"
+                >
+                  <PanelLeftOpen className="size-4" />
+                </button>
+              )}
+              <Button variant="outline" onClick={handleNewFolder} disabled={isStarred}>
                 <FolderPlus /> New folder
               </Button>
-              <Button onClick={handleNewDoc}>
+              <Button onClick={handleNewDoc} disabled={isStarred}>
                 <FilePlus2 /> New document
               </Button>
             </div>
+            <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
+            <div className="w-[1px]" />
           </div>
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-            {visible.map((item) => (
-              <Tile
-                key={item.id}
-                item={item}
-                isDragging={dragId === item.id}
-                dropIndicator={dropTarget?.id === item.id ? dropTarget.position : null}
-                onDragStart={() => setDragId(item.id)}
-                onDragEnd={() => {
-                  setDragId(null);
-                  setDropTarget(null);
-                }}
-                onDragOverTile={(pos) => {
-                  if (dragId && dragId !== item.id) {
-                    setDropTarget({ id: item.id, position: pos });
-                  }
-                }}
-                onDropTile={() => {
-                  if (dragId && dragId !== item.id) {
-                    reorderItem(dragId, item.id, dropTarget?.position ?? "before");
-                  }
-                  setDragId(null);
-                  setDropTarget(null);
-                }}
-                onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
-                onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+        </header>
+
+        <main className="mx-auto max-w-6xl px-6 py-6">
+          {isStarred ? (
+            <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
+              <Star className="size-6" style={{ fill: "currentColor", fillOpacity: 0.3 }} />
+              <span className="text-foreground">Starred</span>
+            </nav>
+          ) : (
+            <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
+              {trail.map((b, i) => (
+                <React.Fragment key={b.id ?? "root"}>
+                  {i > 0 && <ChevronRight className="size-6" />}
+                  <button
+                    className="hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
+                    onClick={() =>
+                      navigate({ to: "/", search: b.id ? { folder: b.id } : {} })
+                    }
+                  >
+                    {b.name}
+                  </button>
+                </React.Fragment>
+              ))}
+            </nav>
+          )}
+
+          {visible.length === 0 ? (
+            <div className="text-center py-24 text-muted-foreground">
+              {isStarred ? (
+                <p>No starred items yet. Star a file or folder from its menu.</p>
+              ) : (
+                <>
+                  <p className="mb-4">This folder is empty.</p>
+                  <div className="flex justify-center gap-2">
+                    <Button variant="outline" onClick={handleNewFolder}>
+                      <FolderPlus /> New folder
+                    </Button>
+                    <Button onClick={handleNewDoc}>
+                      <FilePlus2 /> New document
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+              {visible.map((item) => (
+                <Tile
+                  key={item.id}
+                  item={item}
+                  isDragging={dragId === item.id}
+                  dropIndicator={dropTarget?.id === item.id ? dropTarget.position : null}
+                  onDragStart={() => setDragId(item.id)}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDropTarget(null);
+                  }}
+                  onDragOverTile={(pos) => {
+                    if (dragId && dragId !== item.id) {
+                      setDropTarget({ id: item.id, position: pos });
+                    }
+                  }}
+                  onDropTile={() => {
+                    if (dragId && dragId !== item.id) {
+                      reorderItem(dragId, item.id, dropTarget?.position ?? "before");
+                    }
+                    setDragId(null);
+                    setDropTarget(null);
+                  }}
+                  onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
+                  onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })}
+                />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
+
+function ViewButton({
+  icon,
+  label,
+  active,
+  onClick,
+  onDelete,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <div
+      className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm cursor-pointer transition-colors ${
+        active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      }`}
+      onClick={onClick}
+    >
+      <span className="shrink-0">{icon}</span>
+      <span className="flex-1 truncate">{label}</span>
+      {onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="size-5 inline-flex items-center justify-center rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-background transition-opacity"
+          aria-label="Remove view"
+        >
+          <X className="size-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 
 function Tile({
   item,
