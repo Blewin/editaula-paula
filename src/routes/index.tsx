@@ -154,12 +154,6 @@ function Browser() {
                   <PanelLeftOpen className="size-4" />
                 </button>
               )}
-              <Button variant="outline" onClick={handleNewFolder} disabled={isStarred}>
-                <FolderPlus /> New folder
-              </Button>
-              <Button onClick={handleNewDoc} disabled={isStarred}>
-                <FilePlus2 /> New document
-              </Button>
             </div>
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
             <div className="w-[1px]" />
