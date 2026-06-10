@@ -81,7 +81,15 @@ function Browser() {
     <div className="min-h-screen bg-background flex">
       {panelOpen && (
         <aside className="w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
-          <div className="px-4 py-4 flex items-center justify-between">
+          <div className="px-4 pt-4 pb-2 flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1" onClick={handleNewFolder} disabled={isStarred}>
+              <FolderPlus className="size-4" /> Folder
+            </Button>
+            <Button size="sm" className="flex-1" onClick={handleNewDoc} disabled={isStarred}>
+              <FilePlus2 className="size-4" /> Doc
+            </Button>
+          </div>
+          <div className="px-4 py-3 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Views</h2>
             <button
               onClick={() => setPanelOpen(false)}
@@ -154,12 +162,6 @@ function Browser() {
                   <PanelLeftOpen className="size-4" />
                 </button>
               )}
-              <Button variant="outline" onClick={handleNewFolder} disabled={isStarred}>
-                <FolderPlus /> New folder
-              </Button>
-              <Button onClick={handleNewDoc} disabled={isStarred}>
-                <FilePlus2 /> New document
-              </Button>
             </div>
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
             <div className="w-[1px]" />
