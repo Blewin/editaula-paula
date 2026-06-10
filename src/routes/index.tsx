@@ -81,12 +81,12 @@ function Browser() {
     <div className="min-h-screen bg-background flex">
       {panelOpen && (
         <aside className="w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
-          <div className="px-4 pt-4 pb-2 flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1" onClick={handleNewFolder} disabled={isStarred}>
-              <FolderPlus className="size-4" /> Folder
+          <div className="px-4 pt-4 pb-2 flex flex-col gap-2">
+            <Button variant="outline" onClick={handleNewFolder} disabled={isStarred}>
+              <FolderPlus className="size-4" /> New folder
             </Button>
-            <Button size="sm" className="flex-1" onClick={handleNewDoc} disabled={isStarred}>
-              <FilePlus2 className="size-4" /> Doc
+            <Button onClick={handleNewDoc} disabled={isStarred}>
+              <FilePlus2 className="size-4" /> New document
             </Button>
           </div>
           <div className="px-4 py-3 flex items-center justify-between">
