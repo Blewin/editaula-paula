@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal, Star, Plus, Home, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal, Star, Plus, Home, X } from "lucide-react";
 import {
   createDoc,
   createFolder,
@@ -52,7 +52,7 @@ function Browser() {
     : items.filter((i) => i.parentId === currentFolder);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
-  const [panelOpen, setPanelOpen] = React.useState(true);
+  
   const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
   const [editingViewName, setEditingViewName] = React.useState("");
 
@@ -79,7 +79,6 @@ function Browser() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {panelOpen && (
         <aside className="w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
           <div className="px-4 pt-4 pb-2 flex flex-col gap-2">
             <Button variant="outline" onClick={handleNewFolder} disabled={isStarred}>
@@ -89,15 +88,8 @@ function Browser() {
               <FilePlus2 className="size-4" /> New document
             </Button>
           </div>
-          <div className="px-4 py-3 flex items-center justify-between">
+          <div className="px-4 py-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Views</h2>
-            <button
-              onClick={() => setPanelOpen(false)}
-              className="size-6 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Hide panel"
-            >
-              <PanelLeftClose className="size-4" />
-            </button>
           </div>
           <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
             <ViewButton
@@ -147,22 +139,11 @@ function Browser() {
             </button>
           </nav>
         </aside>
-      )}
 
       <div className="flex-1 min-w-0">
         <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
           <div className="px-6 py-4 flex items-center justify-between gap-4">
-            <div className="flex gap-2 items-center">
-              {!panelOpen && (
-                <button
-                  onClick={() => setPanelOpen(true)}
-                  className="size-9 inline-flex items-center justify-center rounded-md border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                  aria-label="Show panel"
-                >
-                  <PanelLeftOpen className="size-4" />
-                </button>
-              )}
-            </div>
+            <div />
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
             <div className="w-[1px]" />
           </div>
@@ -377,7 +358,7 @@ function Tile({
         e.preventDefault();
         onDropTile();
       }}
-      onDoubleClick={onActivate}
+      
       onClick={onActivate}
       className={`group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-[270px] ${
         isDragging ? "opacity-40" : ""
@@ -412,7 +393,16 @@ function Tile({
             className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-primary"
           />
         ) : (
-          <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
+          <span
+            className="flex-1 text-sm font-medium truncate"
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+            }}
+          >
+            {item.name}
+          </span>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
