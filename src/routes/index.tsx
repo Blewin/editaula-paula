@@ -393,7 +393,16 @@ function Tile({
             className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-primary"
           />
         ) : (
-          <span className="flex-1 text-sm font-medium truncate">{item.name}</span>
+          <span
+            className="flex-1 text-sm font-medium truncate"
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+            }}
+          >
+            {item.name}
+          </span>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
