@@ -88,15 +88,8 @@ function Browser() {
               <FilePlus2 className="size-4" /> New document
             </Button>
           </div>
-          <div className="px-4 py-3 flex items-center justify-between">
+          <div className="px-4 py-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Views</h2>
-            <button
-              onClick={() => setPanelOpen(false)}
-              className="size-6 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Hide panel"
-            >
-              <PanelLeftClose className="size-4" />
-            </button>
           </div>
           <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
             <ViewButton
