@@ -32,7 +32,7 @@ function serializeTabs(tabs: Tab[]): string {
 
 function splitSheets(content: string): string[] {
   const parts = content.split("\n" + SEP + "\n");
-  while (parts.length < 2) parts.push("");
+  while (parts.length < 4) parts.push("");
   return parts;
 }
 
@@ -116,6 +116,24 @@ function TabItem({
   );
 }
 
+function Grid4Icon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="12" y1="3" x2="12" y2="21" />
+    </svg>
+  );
+}
+
 function DocEditor() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -137,6 +155,7 @@ function DocEditor() {
   });
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const [view, setView] = React.useState<"document" | "tiles">("document");
+  const [sheetsPerTab, setSheetsPerTab] = React.useState<2 | 4>(2);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
