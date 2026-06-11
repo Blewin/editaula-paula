@@ -52,7 +52,7 @@ function Browser() {
     : items.filter((i) => i.parentId === currentFolder);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
-  const [panelOpen, setPanelOpen] = React.useState(true);
+  
   const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
   const [editingViewName, setEditingViewName] = React.useState("");
 
