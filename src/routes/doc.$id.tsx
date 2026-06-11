@@ -424,7 +424,7 @@ function DocEditor() {
     return (
       <div
         key={s}
-        className={`w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${
           s === 0 ? "rounded-t-lg rounded-b-none" : "rounded-t-none rounded-b-lg"
         }`}
       >
@@ -456,6 +456,9 @@ function DocEditor() {
             ))}
           </div>
         )}
+        <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60 select-none">
+          {s + 1}
+        </span>
       </div>
     );
   };
