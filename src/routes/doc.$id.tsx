@@ -32,7 +32,7 @@ function serializeTabs(tabs: Tab[]): string {
 
 function splitSheets(content: string): string[] {
   const parts = content.split("\n" + SEP + "\n");
-  while (parts.length < 2) parts.push("");
+  while (parts.length < 4) parts.push("");
   return parts;
 }
 
@@ -116,6 +116,24 @@ function TabItem({
   );
 }
 
+function Grid4Icon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="12" y1="3" x2="12" y2="21" />
+    </svg>
+  );
+}
+
 function DocEditor() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -137,6 +155,7 @@ function DocEditor() {
   });
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const [view, setView] = React.useState<"document" | "tiles">("document");
+  const [sheetsPerTab, setSheetsPerTab] = React.useState<2 | 4>(2);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
@@ -365,12 +384,17 @@ function DocEditor() {
       }
     };
 
+    const borderRadius =
+      sheetsPerTab === 4
+        ? "rounded-lg"
+        : s === 0
+          ? "rounded-t-lg rounded-b-none"
+          : "rounded-t-none rounded-b-lg";
+
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-6 leading-relaxed ${
-          s === 0 ? "rounded-t-lg rounded-b-none" : "rounded-t-none rounded-b-lg"
-        }`}
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-6 leading-relaxed ${borderRadius}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) focusLine(s, lines.length - 1);
         }}
@@ -421,12 +445,16 @@ function DocEditor() {
 
   const renderTiles = (s: number) => {
     const paragraphs = splitParagraphs(sheets[s] ?? "");
+    const borderRadius =
+      sheetsPerTab === 4
+        ? "rounded-lg"
+        : s === 0
+          ? "rounded-t-lg rounded-b-none"
+          : "rounded-t-none rounded-b-lg";
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${
-          s === 0 ? "rounded-t-lg rounded-b-none" : "rounded-t-none rounded-b-lg"
-        }`}
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
       >
         {paragraphs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No paragraphs yet.</p>
@@ -493,6 +521,14 @@ function DocEditor() {
           >
             {view === "document" ? <AlignJustify /> : <FileText />}
           </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSheetsPerTab((n) => (n === 2 ? 4 : 2))}
+            title={sheetsPerTab === 2 ? "Show 4 pages" : "Show 2 pages"}
+          >
+            <Grid4Icon className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
@@ -532,11 +568,11 @@ function DocEditor() {
           )}
 
           <main
-            className={`min-w-0 flex flex-col gap-[4px] ${
+            className={`min-w-0 ${sheetsPerTab === 4 ? "grid grid-cols-2 gap-[4px]" : "flex flex-col gap-[4px]"} ${
               tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
           >
-            {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
+            {sheets.slice(0, sheetsPerTab).map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
           </main>
         </div>
       </div>
