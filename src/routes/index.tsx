@@ -227,11 +227,21 @@ function Browser() {
               ))}
             </div>
           )}
+          <Annotation>Main area — your files and folders</Annotation>
         </main>
       </div>
     </div>
   );
 }
+
+function Annotation({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="pointer-events-none absolute bottom-2 right-2 text-[10px] font-light text-muted-foreground/60 italic select-none">
+      {children}
+    </div>
+  );
+}
+
 
 function ViewButton({
   icon,
