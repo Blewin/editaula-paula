@@ -144,13 +144,15 @@ function Browser() {
 
 
       <div className="flex-1 min-w-0">
-        <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
+        <header className="relative border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <div />
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
             <div className="w-[1px]" />
           </div>
+          <Annotation>Header — app title</Annotation>
         </header>
+
 
         <main className="mx-auto max-w-6xl px-6 py-6">
           {isStarred ? (
