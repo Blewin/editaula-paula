@@ -143,17 +143,7 @@ function Browser() {
       <div className="flex-1 min-w-0">
         <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
           <div className="px-6 py-4 flex items-center justify-between gap-4">
-            <div className="flex gap-2 items-center">
-              {!panelOpen && (
-                <button
-                  onClick={() => setPanelOpen(true)}
-                  className="size-9 inline-flex items-center justify-center rounded-md border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                  aria-label="Show panel"
-                >
-                  <PanelLeftOpen className="size-4" />
-                </button>
-              )}
-            </div>
+            <div />
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
             <div className="w-[1px]" />
           </div>
