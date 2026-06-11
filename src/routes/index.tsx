@@ -154,7 +154,7 @@ function Browser() {
         </header>
 
 
-        <main className="mx-auto max-w-6xl px-6 py-6">
+        <main className="relative mx-auto max-w-6xl px-6 py-6 min-h-[calc(100vh-65px)]">
           {isStarred ? (
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
               <Star className="size-6" style={{ fill: "currentColor", fillOpacity: 0.3 }} />
