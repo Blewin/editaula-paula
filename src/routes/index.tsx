@@ -174,21 +174,13 @@ function Browser() {
           )}
 
           {visible.length === 0 ? (
-            <div className="text-center py-24 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground">
               {isStarred ? (
                 <p>No starred items yet. Star a file or folder from its menu.</p>
               ) : (
-                <>
-                  <p className="mb-4">This folder is empty.</p>
-                  <div className="flex justify-center gap-2">
-                    <Button variant="outline" onClick={handleNewFolder}>
-                      <FolderPlus /> New folder
-                    </Button>
-                    <Button onClick={handleNewDoc}>
-                      <FilePlus2 /> New document
-                    </Button>
-                  </div>
-                </>
+                <Button size="lg" onClick={handleNewFolder}>
+                  <FolderPlus className="size-5" /> Add files or folders
+                </Button>
               )}
             </div>
           ) : (
