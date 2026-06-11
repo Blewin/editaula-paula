@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal, Star, Plus, Home, X } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X } from "lucide-react";
 import {
   createDoc,
   createFolder,
@@ -428,9 +428,6 @@ function Tile({
                 style={item.starred ? { fill: "currentColor", fillOpacity: 0.3 } : undefined}
               />
               {item.starred ? "Unstar" : "Star"}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setEditing(true)}>
-              <Pencil className="size-4" /> Rename
             </DropdownMenuItem>
             {item.type === "folder" && (
               <DropdownMenuSub>
