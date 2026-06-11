@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal, Star, Plus, Home, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, Pencil, MoreHorizontal, Star, Plus, Home, X } from "lucide-react";
 import {
   createDoc,
   createFolder,
