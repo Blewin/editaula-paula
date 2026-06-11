@@ -384,12 +384,17 @@ function DocEditor() {
       }
     };
 
+    const borderRadius =
+      sheetsPerTab === 4
+        ? "rounded-lg"
+        : s === 0
+          ? "rounded-t-lg rounded-b-none"
+          : "rounded-t-none rounded-b-lg";
+
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-6 leading-relaxed ${
-          s === 0 ? "rounded-t-lg rounded-b-none" : "rounded-t-none rounded-b-lg"
-        }`}
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-6 leading-relaxed ${borderRadius}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) focusLine(s, lines.length - 1);
         }}
