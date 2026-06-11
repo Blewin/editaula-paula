@@ -79,9 +79,8 @@ function Browser() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <Annotation>Whole page — your file browser</Annotation>
+        <aside className="relative w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
 
-        <aside className="w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
           <div className="px-4 pt-4 pb-2 flex flex-col gap-2">
             <Button variant="outline" onClick={handleNewFolder} disabled={isStarred}>
               <FolderPlus className="size-4" /> New folder
