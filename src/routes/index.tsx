@@ -139,7 +139,9 @@ function Browser() {
               <Plus className="size-4" /> Add view
             </button>
           </nav>
+          <Annotation>Sidebar — switch views & create items</Annotation>
         </aside>
+
 
       <div className="flex-1 min-w-0">
         <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
