@@ -445,12 +445,16 @@ function DocEditor() {
 
   const renderTiles = (s: number) => {
     const paragraphs = splitParagraphs(sheets[s] ?? "");
+    const borderRadius =
+      sheetsPerTab === 4
+        ? "rounded-lg"
+        : s === 0
+          ? "rounded-t-lg rounded-b-none"
+          : "rounded-t-none rounded-b-lg";
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${
-          s === 0 ? "rounded-t-lg rounded-b-none" : "rounded-t-none rounded-b-lg"
-        }`}
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
       >
         {paragraphs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No paragraphs yet.</p>
