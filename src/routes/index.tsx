@@ -429,9 +429,6 @@ function Tile({
               />
               {item.starred ? "Unstar" : "Star"}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setEditing(true)}>
-              <Pencil className="size-4" /> Rename
-            </DropdownMenuItem>
             {item.type === "folder" && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
