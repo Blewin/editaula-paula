@@ -79,8 +79,7 @@ function Browser() {
 
   return (
     <div className="min-h-screen bg-background flex">
-        <aside className="relative w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
-
+        <aside className="w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
           <div className="px-4 pt-4 pb-2 flex flex-col gap-2">
             <Button variant="outline" onClick={handleNewFolder} disabled={isStarred}>
               <FolderPlus className="size-4" /> New folder
@@ -139,22 +138,18 @@ function Browser() {
               <Plus className="size-4" /> Add view
             </button>
           </nav>
-          <Annotation>Sidebar — switch views & create items</Annotation>
         </aside>
 
-
       <div className="flex-1 min-w-0">
-        <header className="relative border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
+        <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <div />
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
             <div className="w-[1px]" />
           </div>
-          <Annotation>Header — app title</Annotation>
         </header>
 
-
-        <main className="relative mx-auto max-w-6xl px-6 py-6 min-h-[calc(100vh-65px)]">
+        <main className="mx-auto max-w-6xl px-6 py-6">
           {isStarred ? (
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
               <Star className="size-6" style={{ fill: "currentColor", fillOpacity: 0.3 }} />
@@ -227,21 +222,11 @@ function Browser() {
               ))}
             </div>
           )}
-          <Annotation>Main area — your files and folders</Annotation>
         </main>
       </div>
     </div>
   );
 }
-
-function Annotation({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="pointer-events-none absolute bottom-2 right-2 text-[10px] font-light text-muted-foreground/60 italic select-none">
-      {children}
-    </div>
-  );
-}
-
 
 function ViewButton({
   icon,
