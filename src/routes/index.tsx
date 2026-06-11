@@ -139,7 +139,6 @@ function Browser() {
             </button>
           </nav>
         </aside>
-      )}
 
       <div className="flex-1 min-w-0">
         <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
