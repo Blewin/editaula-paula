@@ -521,6 +521,14 @@ function DocEditor() {
           >
             {view === "document" ? <AlignJustify /> : <FileText />}
           </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSheetsPerTab((n) => (n === 2 ? 4 : 2))}
+            title={sheetsPerTab === 2 ? "Show 4 pages" : "Show 2 pages"}
+          >
+            <Grid4Icon className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
