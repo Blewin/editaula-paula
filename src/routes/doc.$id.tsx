@@ -13,6 +13,7 @@ const SEP = "\u0001___SHEET_BREAK___\u0001";
 const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
 
 type Tab = { name: string; content: string };
+type PageLayout = "vertical" | "grid4" | "grid6" | "vertical6";
 
 function parseTabs(content: string): Tab[] {
   if (content.startsWith(TABS_MARKER)) {
@@ -155,7 +156,7 @@ function DocEditor() {
   });
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const [view, setView] = React.useState<"document" | "tiles">("document");
-  const [sheetsPerTab, setSheetsPerTab] = React.useState<2 | 4>(2);
+  const [pageLayout, setPageLayout] = React.useState<PageLayout>("vertical");
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
@@ -225,18 +226,33 @@ function DocEditor() {
     setTabs(next);
   };
 
-  const togglePageLayout = () => {
-    if (sheetsPerTab === 2) {
-      setSheets((current) => {
-        const next = [...current];
-        while (next.length < 4) next.push("");
-        return next;
-      });
-      setSheetsPerTab(4);
-      return;
-    }
-    setSheetsPerTab(2);
+  const cyclePageLayout = () => {
+    const nextLayout: PageLayout =
+      pageLayout === "vertical"
+        ? "grid4"
+        : pageLayout === "grid4"
+          ? "grid6"
+          : pageLayout === "grid6"
+            ? "vertical6"
+            : "vertical";
+    const minimumPages = nextLayout === "grid4" ? 4 : nextLayout === "vertical" ? 2 : 6;
+    setSheets((current) => {
+      const next = [...current];
+      while (next.length < minimumPages) next.push("");
+      return next;
+    });
+    setPageLayout(nextLayout);
   };
+
+  const isGridLayout = pageLayout === "grid4" || pageLayout === "grid6";
+  const lastWrittenSheet = sheets.reduce((last, sheet, index) =>
+    sheet.trim().length > 0 ? index : last, -1);
+  const visiblePageCount =
+    pageLayout === "grid4"
+      ? 4
+      : pageLayout === "grid6" || pageLayout === "vertical6"
+        ? 6
+        : Math.max(2, lastWrittenSheet + 1);
 
   // Focus active line input and place caret
   React.useEffect(() => {
@@ -398,11 +414,11 @@ function DocEditor() {
     };
 
     const borderRadius =
-      sheetsPerTab === 4
+      isGridLayout
         ? "rounded-lg"
         : s === 0
           ? "rounded-t-lg rounded-b-none"
-          : s === sheets.length - 1
+          : s === visiblePageCount - 1
             ? "rounded-t-none rounded-b-lg"
             : "rounded-none";
 
@@ -461,11 +477,11 @@ function DocEditor() {
   const renderTiles = (s: number) => {
     const paragraphs = splitParagraphs(sheets[s] ?? "");
     const borderRadius =
-      sheetsPerTab === 4
+      isGridLayout
         ? "rounded-lg"
         : s === 0
           ? "rounded-t-lg rounded-b-none"
-          : s === sheets.length - 1
+          : s === visiblePageCount - 1
             ? "rounded-t-none rounded-b-lg"
             : "rounded-none";
     return (
@@ -541,8 +557,16 @@ function DocEditor() {
           <Button
             variant="outline"
             size="icon"
-            onClick={togglePageLayout}
-            title={sheetsPerTab === 2 ? "Show 4 pages" : "Show 2 pages"}
+            onClick={cyclePageLayout}
+            title={
+              pageLayout === "vertical"
+                ? "Show 4 pages"
+                : pageLayout === "grid4"
+                  ? "Show 6 pages"
+                  : pageLayout === "grid6"
+                    ? "Show 6 pages vertically"
+                    : "Show standard page view"
+            }
           >
             <Grid4Icon className="h-4 w-4" />
           </Button>
@@ -585,11 +609,13 @@ function DocEditor() {
           )}
 
           <main
-            className={`min-w-0 ${sheetsPerTab === 4 ? "grid grid-cols-2 gap-[4px]" : "flex flex-col gap-[4px]"} ${
+            className={`min-w-0 ${isGridLayout ? "grid grid-cols-2 gap-[4px]" : "flex flex-col gap-[4px]"} ${
               tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
           >
-            {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
+            {sheets.slice(0, visiblePageCount).map((_, s) =>
+              view === "document" ? renderSheet(s) : renderTiles(s),
+            )}
           </main>
         </div>
       </div>
