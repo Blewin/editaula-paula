@@ -32,7 +32,7 @@ function serializeTabs(tabs: Tab[]): string {
 
 function splitSheets(content: string): string[] {
   const parts = content.split("\n" + SEP + "\n");
-  while (parts.length < 4) parts.push("");
+  while (parts.length < 2) parts.push("");
   return parts;
 }
 
@@ -225,6 +225,19 @@ function DocEditor() {
     setTabs(next);
   };
 
+  const togglePageLayout = () => {
+    if (sheetsPerTab === 2) {
+      setSheets((current) => {
+        const next = [...current];
+        while (next.length < 4) next.push("");
+        return next;
+      });
+      setSheetsPerTab(4);
+      return;
+    }
+    setSheetsPerTab(2);
+  };
+
   // Focus active line input and place caret
   React.useEffect(() => {
     const el = inputRef.current;
@@ -389,7 +402,9 @@ function DocEditor() {
         ? "rounded-lg"
         : s === 0
           ? "rounded-t-lg rounded-b-none"
-          : "rounded-t-none rounded-b-lg";
+          : s === sheets.length - 1
+            ? "rounded-t-none rounded-b-lg"
+            : "rounded-none";
 
     return (
       <div
@@ -450,7 +465,9 @@ function DocEditor() {
         ? "rounded-lg"
         : s === 0
           ? "rounded-t-lg rounded-b-none"
-          : "rounded-t-none rounded-b-lg";
+          : s === sheets.length - 1
+            ? "rounded-t-none rounded-b-lg"
+            : "rounded-none";
     return (
       <div
         key={s}
@@ -524,7 +541,7 @@ function DocEditor() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSheetsPerTab((n) => (n === 2 ? 4 : 2))}
+            onClick={togglePageLayout}
             title={sheetsPerTab === 2 ? "Show 4 pages" : "Show 2 pages"}
           >
             <Grid4Icon className="h-4 w-4" />
@@ -572,7 +589,7 @@ function DocEditor() {
               tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
           >
-            {sheets.slice(0, sheetsPerTab).map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
+            {sheets.map((_, s) => (view === "document" ? renderSheet(s) : renderTiles(s)))}
           </main>
         </div>
       </div>
