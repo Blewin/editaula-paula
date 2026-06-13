@@ -256,6 +256,19 @@ function DocEditor() {
           ? Math.max(2, lastWrittenSheet + 1)
           : 2;
 
+  const pageBorderRadius = (s: number) => {
+    if (isGridLayout) {
+      if (s === 0) return "rounded-tl-lg";
+      if (s === 1) return "rounded-tr-lg";
+      if (s === visiblePageCount - 2) return "rounded-bl-lg";
+      if (s === visiblePageCount - 1) return "rounded-br-lg";
+      return "rounded-none";
+    }
+    if (s === 0) return "rounded-t-lg rounded-b-none";
+    if (s === visiblePageCount - 1) return "rounded-t-none rounded-b-lg";
+    return "rounded-none";
+  };
+
   // Focus active line input and place caret
   React.useEffect(() => {
     const el = inputRef.current;
@@ -415,14 +428,7 @@ function DocEditor() {
       }
     };
 
-    const borderRadius =
-      isGridLayout
-        ? "rounded-lg"
-        : s === 0
-          ? "rounded-t-lg rounded-b-none"
-          : s === visiblePageCount - 1
-            ? "rounded-t-none rounded-b-lg"
-            : "rounded-none";
+    const borderRadius = pageBorderRadius(s);
 
     return (
       <div
@@ -478,14 +484,7 @@ function DocEditor() {
 
   const renderTiles = (s: number) => {
     const paragraphs = splitParagraphs(sheets[s] ?? "");
-    const borderRadius =
-      isGridLayout
-        ? "rounded-lg"
-        : s === 0
-          ? "rounded-t-lg rounded-b-none"
-          : s === visiblePageCount - 1
-            ? "rounded-t-none rounded-b-lg"
-            : "rounded-none";
+    const borderRadius = pageBorderRadius(s);
     return (
       <div
         key={s}
