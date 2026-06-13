@@ -13,7 +13,7 @@ const SEP = "\u0001___SHEET_BREAK___\u0001";
 const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
 
 type Tab = { name: string; content: string };
-type PageLayout = "vertical" | "grid4" | "grid6" | "vertical6";
+type PageLayout = "vertical2" | "grid4" | "grid6" | "verticalAll";
 
 function parseTabs(content: string): Tab[] {
   if (content.startsWith(TABS_MARKER)) {
@@ -156,7 +156,7 @@ function DocEditor() {
   });
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const [view, setView] = React.useState<"document" | "tiles">("document");
-  const [pageLayout, setPageLayout] = React.useState<PageLayout>("vertical");
+  const [pageLayout, setPageLayout] = React.useState<PageLayout>("vertical2");
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
@@ -228,14 +228,14 @@ function DocEditor() {
 
   const cyclePageLayout = () => {
     const nextLayout: PageLayout =
-      pageLayout === "vertical"
+      pageLayout === "vertical2"
         ? "grid4"
         : pageLayout === "grid4"
           ? "grid6"
           : pageLayout === "grid6"
-            ? "vertical6"
-            : "vertical";
-    const minimumPages = nextLayout === "grid4" ? 4 : nextLayout === "vertical" ? 2 : 6;
+            ? "verticalAll"
+            : "vertical2";
+    const minimumPages = nextLayout === "grid4" ? 4 : nextLayout === "grid6" ? 6 : 2;
     setSheets((current) => {
       const next = [...current];
       while (next.length < minimumPages) next.push("");
@@ -250,9 +250,11 @@ function DocEditor() {
   const visiblePageCount =
     pageLayout === "grid4"
       ? 4
-      : pageLayout === "grid6" || pageLayout === "vertical6"
+      : pageLayout === "grid6"
         ? 6
-        : Math.max(2, lastWrittenSheet + 1);
+        : pageLayout === "verticalAll"
+          ? Math.max(2, lastWrittenSheet + 1)
+          : 2;
 
   // Focus active line input and place caret
   React.useEffect(() => {
@@ -559,13 +561,13 @@ function DocEditor() {
             size="icon"
             onClick={cyclePageLayout}
             title={
-              pageLayout === "vertical"
+              pageLayout === "vertical2"
                 ? "Show 4 pages"
                 : pageLayout === "grid4"
                   ? "Show 6 pages"
                   : pageLayout === "grid6"
-                    ? "Show 6 pages vertically"
-                    : "Show standard page view"
+                    ? "Show all written pages vertically"
+                    : "Show 2 pages vertically"
             }
           >
             <Grid4Icon className="h-4 w-4" />
