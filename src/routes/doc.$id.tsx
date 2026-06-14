@@ -558,13 +558,11 @@ function DocEditor() {
             size="icon"
             onClick={cyclePageLayout}
             title={
-              pageLayout === "vertical2"
+              pageLayout === "verticalAll"
                 ? "Show 4 pages"
                 : pageLayout === "grid4"
                   ? "Show 6 pages"
-                  : pageLayout === "grid6"
-                    ? "Show all written pages vertically"
-                    : "Show 2 pages vertically"
+                  : "Show all written pages vertically"
             }
           >
             <Grid4Icon className="h-4 w-4" />
