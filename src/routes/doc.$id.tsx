@@ -156,7 +156,7 @@ function DocEditor() {
   });
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const [view, setView] = React.useState<"document" | "tiles">("document");
-  const [pageLayout, setPageLayout] = React.useState<PageLayout>("vertical2");
+  const [pageLayout, setPageLayout] = React.useState<PageLayout>("verticalAll");
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
