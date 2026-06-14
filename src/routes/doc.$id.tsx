@@ -228,13 +228,11 @@ function DocEditor() {
 
   const cyclePageLayout = () => {
     const nextLayout: PageLayout =
-      pageLayout === "vertical2"
+      pageLayout === "verticalAll"
         ? "grid4"
         : pageLayout === "grid4"
           ? "grid6"
-          : pageLayout === "grid6"
-            ? "verticalAll"
-            : "vertical2";
+          : "verticalAll";
     const minimumPages = nextLayout === "grid4" ? 4 : nextLayout === "grid6" ? 6 : 2;
     setSheets((current) => {
       const next = [...current];
