@@ -13,7 +13,7 @@ const SEP = "\u0001___SHEET_BREAK___\u0001";
 const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
 
 type Tab = { name: string; content: string };
-type PageLayout = "vertical2" | "grid4" | "grid6" | "verticalAll";
+type PageLayout = "grid4" | "grid6" | "verticalAll";
 
 function parseTabs(content: string): Tab[] {
   if (content.startsWith(TABS_MARKER)) {
@@ -156,7 +156,7 @@ function DocEditor() {
   });
   const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const [view, setView] = React.useState<"document" | "tiles">("document");
-  const [pageLayout, setPageLayout] = React.useState<PageLayout>("vertical2");
+  const [pageLayout, setPageLayout] = React.useState<PageLayout>("verticalAll");
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
@@ -228,13 +228,11 @@ function DocEditor() {
 
   const cyclePageLayout = () => {
     const nextLayout: PageLayout =
-      pageLayout === "vertical2"
+      pageLayout === "verticalAll"
         ? "grid4"
         : pageLayout === "grid4"
           ? "grid6"
-          : pageLayout === "grid6"
-            ? "verticalAll"
-            : "vertical2";
+          : "verticalAll";
     const minimumPages = nextLayout === "grid4" ? 4 : nextLayout === "grid6" ? 6 : 2;
     setSheets((current) => {
       const next = [...current];
@@ -560,13 +558,11 @@ function DocEditor() {
             size="icon"
             onClick={cyclePageLayout}
             title={
-              pageLayout === "vertical2"
+              pageLayout === "verticalAll"
                 ? "Show 4 pages"
                 : pageLayout === "grid4"
                   ? "Show 6 pages"
-                  : pageLayout === "grid6"
-                    ? "Show all written pages vertically"
-                    : "Show 2 pages vertically"
+                  : "Show all written pages vertically"
             }
           >
             <Grid4Icon className="h-4 w-4" />
