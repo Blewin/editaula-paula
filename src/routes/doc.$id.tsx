@@ -13,7 +13,7 @@ const SEP = "\u0001___SHEET_BREAK___\u0001";
 const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
 
 type Tab = { name: string; content: string };
-type PageLayout = "vertical2" | "grid4" | "grid6" | "verticalAll";
+type PageLayout = "grid4" | "grid6" | "verticalAll";
 
 function parseTabs(content: string): Tab[] {
   if (content.startsWith(TABS_MARKER)) {
