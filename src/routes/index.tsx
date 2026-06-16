@@ -233,7 +233,10 @@ function Browser() {
                   }}
                   onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
                   onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })}
+                  views={views}
+                  activeViewId={activeView?.id}
                 />
+
               ))}
             </div>
           )}
