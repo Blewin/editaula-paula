@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X } from "lucide-react";
 import {
+  addItemToView,
   createDoc,
   createFolder,
   createView,
@@ -9,13 +10,16 @@ import {
   deleteView,
   FOLDER_COLORS,
   getBreadcrumb,
+  removeItemFromView,
   reorderItem,
   updateItem,
   updateView,
   useItems,
   useViews,
   type Item,
+  type View,
 } from "@/lib/storage";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
