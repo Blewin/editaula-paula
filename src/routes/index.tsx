@@ -247,7 +247,7 @@ function Browser() {
                     setDropTarget(null);
                   }}
                   onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
-                  onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })}
+                  onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id }, search: backSearch })}
                   views={views}
                   activeViewId={activeView?.id}
                 />
