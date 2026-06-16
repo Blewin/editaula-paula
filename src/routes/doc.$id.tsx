@@ -5,7 +5,13 @@ import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
 
+type DocSearch = { fromView?: string; fromFolder?: string };
+
 export const Route = createFileRoute("/doc/$id")({
+  validateSearch: (s: Record<string, unknown>): DocSearch => ({
+    fromView: typeof s.fromView === "string" ? s.fromView : undefined,
+    fromFolder: typeof s.fromFolder === "string" ? s.fromFolder : undefined,
+  }),
   component: DocEditor,
 });
 
