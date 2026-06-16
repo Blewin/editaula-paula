@@ -64,16 +64,19 @@ function Browser() {
   const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
   const [editingViewName, setEditingViewName] = React.useState("");
 
-  const disableCreate = isStarred || isCustomView;
+  const disableCreate = isStarred;
 
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
+    if (activeView) addItemToView(activeView.id, id);
     navigate({ to: "/doc/$id", params: { id } });
   };
 
   const handleNewFolder = () => {
-    createFolder(currentFolder);
+    const id = createFolder(currentFolder);
+    if (activeView) addItemToView(activeView.id, id);
   };
+
 
   const handleAddView = () => {
     const nums = views.map((v) => {
