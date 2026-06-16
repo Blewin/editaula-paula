@@ -5,12 +5,12 @@ import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
 
-type DocSearch = { fromView?: string; fromFolder?: string };
+type DocSearch = { view?: string; folder?: string };
 
 export const Route = createFileRoute("/doc/$id")({
   validateSearch: (s: Record<string, unknown>): DocSearch => ({
-    fromView: typeof s.fromView === "string" ? s.fromView : undefined,
-    fromFolder: typeof s.fromFolder === "string" ? s.fromFolder : undefined,
+    view: typeof s.view === "string" ? s.view : undefined,
+    folder: typeof s.folder === "string" ? s.folder : undefined,
   }),
   component: DocEditor,
 });
@@ -143,7 +143,7 @@ function Grid4Icon({ className }: { className?: string }) {
 
 function DocEditor() {
   const { id } = Route.useParams();
-  const { fromView, fromFolder } = Route.useSearch();
+  const { view: fromView, folder: fromFolder } = Route.useSearch();
   const navigate = useNavigate();
   useItems(); // subscribe for reactivity
   const doc = getItem(id);
