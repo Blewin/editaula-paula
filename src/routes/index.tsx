@@ -46,15 +46,21 @@ function Browser() {
   const navigate = useNavigate();
   const currentFolder = folder ?? null;
   const isStarred = view === "starred";
+  const activeView = view && view !== "starred" ? views.find((v) => v.id === view) : undefined;
+  const isCustomView = !!activeView;
   const trail = React.useMemo(() => getBreadcrumb(currentFolder), [items, currentFolder]);
   const visible = isStarred
     ? items.filter((i) => i.starred)
+    : isCustomView
+    ? items.filter((i) => activeView!.itemIds.includes(i.id))
     : items.filter((i) => i.parentId === currentFolder);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
   
   const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
   const [editingViewName, setEditingViewName] = React.useState("");
+
+  const disableCreate = isStarred || isCustomView;
 
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
@@ -72,10 +78,11 @@ function Browser() {
     });
     const next = Math.max(0, ...nums) + 1;
     const name = `View ${next}`;
-    const id = createView(name, currentFolder);
+    const id = createView(name);
     setEditingViewId(id);
     setEditingViewName(name);
   };
+
 
   return (
     <div className="min-h-screen bg-background flex">
