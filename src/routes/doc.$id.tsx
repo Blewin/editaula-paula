@@ -143,7 +143,7 @@ function Grid4Icon({ className }: { className?: string }) {
 
 function DocEditor() {
   const { id } = Route.useParams();
-  const { fromView, fromFolder } = Route.useSearch();
+  const { view: fromView, folder: fromFolder } = Route.useSearch();
   const navigate = useNavigate();
   useItems(); // subscribe for reactivity
   const doc = getItem(id);
