@@ -66,10 +66,18 @@ function Browser() {
 
   const disableCreate = isStarred;
 
+  const backSearch = isStarred
+    ? { view: "starred" as const }
+    : isCustomView
+      ? { view: activeView!.id }
+      : currentFolder
+        ? { folder: currentFolder }
+        : ({} as Record<string, never>);
+
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
     if (activeView) addItemToView(activeView.id, id);
-    navigate({ to: "/doc/$id", params: { id } });
+    navigate({ to: "/doc/$id", params: { id }, search: backSearch });
   };
 
   const handleNewFolder = () => {
