@@ -485,7 +485,41 @@ function Tile({
                 </DropdownMenuPortal>
               </DropdownMenuSub>
             )}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Plus className="size-4" /> Add to a view
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  {views.length === 0 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">No views yet</div>
+                  ) : (
+                    views.map((v) => {
+                      const inView = v.itemIds.includes(item.id);
+                      return (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onSelect={() =>
+                            inView ? removeItemFromView(v.id, item.id) : addItemToView(v.id, item.id)
+                          }
+                        >
+                          <Folder className="size-4" />
+                          <span className="flex-1 truncate">{v.name}</span>
+                          {inView && <Star className="size-3" style={{ fill: "currentColor" }} />}
+                        </DropdownMenuItem>
+                      );
+                    })
+                  )}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            {activeViewId && (
+              <DropdownMenuItem onSelect={() => removeItemFromView(activeViewId, item.id)}>
+                <X className="size-4" /> Remove from this view
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
+
             <DropdownMenuItem
               onSelect={() => {
                 if (confirm(`Delete "${item.name}"${item.type === "folder" ? " and its contents" : ""}?`)) {
