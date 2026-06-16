@@ -177,8 +177,7 @@ export function getBreadcrumb(folderId: string | null): { id: string | null; nam
 export type View = {
   id: string;
   name: string;
-  // null = bookmark to Home; otherwise a folder id
-  folderId: string | null;
+  itemIds: string[];
 };
 
 const VIEWS_KEY = "md-editor-views-v1";
@@ -187,7 +186,14 @@ function readViews(): View[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(VIEWS_KEY);
-    return raw ? (JSON.parse(raw) as View[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Array<Partial<View>>;
+    // Migrate legacy { folderId } shape into { itemIds: [] }.
+    return parsed.map((v) => ({
+      id: v.id as string,
+      name: v.name as string,
+      itemIds: Array.isArray(v.itemIds) ? v.itemIds : [],
+    }));
   } catch {
     return [];
   }
@@ -213,10 +219,10 @@ export function useViews() {
   return views;
 }
 
-export function createView(name: string, folderId: string | null): string {
+export function createView(name: string): string {
   const views = readViews();
   const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-  views.push({ id, name, folderId });
+  views.push({ id, name, itemIds: [] });
   writeViews(views);
   return id;
 }
@@ -231,4 +237,21 @@ export function updateView(id: string, patch: Partial<Omit<View, "id">>) {
 
 export function deleteView(id: string) {
   writeViews(readViews().filter((v) => v.id !== id));
+}
+
+export function addItemToView(viewId: string, itemId: string) {
+  const views = readViews();
+  const idx = views.findIndex((v) => v.id === viewId);
+  if (idx === -1) return;
+  if (views[idx].itemIds.includes(itemId)) return;
+  views[idx] = { ...views[idx], itemIds: [...views[idx].itemIds, itemId] };
+  writeViews(views);
+}
+
+export function removeItemFromView(viewId: string, itemId: string) {
+  const views = readViews();
+  const idx = views.findIndex((v) => v.id === viewId);
+  if (idx === -1) return;
+  views[idx] = { ...views[idx], itemIds: views[idx].itemIds.filter((i) => i !== itemId) };
+  writeViews(views);
 }

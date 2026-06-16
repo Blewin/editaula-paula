@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X } from "lucide-react";
 import {
+  addItemToView,
   createDoc,
   createFolder,
   createView,
@@ -9,13 +10,16 @@ import {
   deleteView,
   FOLDER_COLORS,
   getBreadcrumb,
+  removeItemFromView,
   reorderItem,
   updateItem,
   updateView,
   useItems,
   useViews,
   type Item,
+  type View,
 } from "@/lib/storage";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -46,15 +50,21 @@ function Browser() {
   const navigate = useNavigate();
   const currentFolder = folder ?? null;
   const isStarred = view === "starred";
+  const activeView = view && view !== "starred" ? views.find((v) => v.id === view) : undefined;
+  const isCustomView = !!activeView;
   const trail = React.useMemo(() => getBreadcrumb(currentFolder), [items, currentFolder]);
   const visible = isStarred
     ? items.filter((i) => i.starred)
+    : isCustomView
+    ? items.filter((i) => activeView!.itemIds.includes(i.id))
     : items.filter((i) => i.parentId === currentFolder);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
   
   const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
   const [editingViewName, setEditingViewName] = React.useState("");
+
+  const disableCreate = isStarred || isCustomView;
 
   const handleNewDoc = () => {
     const id = createDoc(currentFolder);
@@ -72,22 +82,24 @@ function Browser() {
     });
     const next = Math.max(0, ...nums) + 1;
     const name = `View ${next}`;
-    const id = createView(name, currentFolder);
+    const id = createView(name);
     setEditingViewId(id);
     setEditingViewName(name);
   };
+
 
   return (
     <div className="min-h-screen bg-background flex">
         <aside className="w-60 shrink-0 border-r bg-muted/30 flex flex-col sticky top-0 h-screen">
           <div className="px-4 pt-4 pb-2 flex flex-col gap-2">
-            <Button variant="outline" onClick={handleNewFolder} disabled={isStarred}>
+            <Button variant="outline" onClick={handleNewFolder} disabled={disableCreate}>
               <FolderPlus className="size-4" /> New folder
             </Button>
-            <Button onClick={handleNewDoc} disabled={isStarred}>
+            <Button onClick={handleNewDoc} disabled={disableCreate}>
               <FilePlus2 className="size-4" /> New document
             </Button>
           </div>
+
           <div className="px-4 py-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Views</h2>
           </div>
@@ -109,10 +121,9 @@ function Browser() {
                 key={v.id}
                 icon={<Folder className="size-4" />}
                 label={v.name}
-                active={!isStarred && currentFolder === v.folderId && view === undefined}
-                onClick={() =>
-                  navigate({ to: "/", search: v.folderId ? { folder: v.folderId } : {} })
-                }
+                active={view === v.id}
+                onClick={() => navigate({ to: "/", search: { view: v.id } })}
+
                 onDelete={() => {
                   if (confirm(`Remove view "${v.name}"?`)) deleteView(v.id);
                 }}
@@ -155,6 +166,11 @@ function Browser() {
               <Star className="size-6" style={{ fill: "currentColor", fillOpacity: 0.3 }} />
               <span className="text-foreground">Starred</span>
             </nav>
+          ) : isCustomView ? (
+            <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
+              <Folder className="size-6" />
+              <span className="text-foreground">{activeView!.name}</span>
+            </nav>
           ) : (
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
               {trail.map((b, i) => (
@@ -177,6 +193,8 @@ function Browser() {
             <div className="text-center py-24 text-muted-foreground">
               {isStarred ? (
                 <p>No starred items yet. Star a file or folder from its menu.</p>
+              ) : isCustomView ? (
+                <p>Add files or folders to this view.</p>
               ) : (
                 <>
                   <p className="mb-4">This folder is empty.</p>
@@ -191,6 +209,7 @@ function Browser() {
                 </>
               )}
             </div>
+
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
               {visible.map((item) => (
@@ -218,7 +237,10 @@ function Browser() {
                   }}
                   onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
                   onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id } })}
+                  views={views}
+                  activeViewId={activeView?.id}
                 />
+
               ))}
             </div>
           )}
@@ -310,6 +332,8 @@ function Tile({
   onDragEnd,
   onDragOverTile,
   onDropTile,
+  views,
+  activeViewId,
 }: {
   item: Item;
   onOpenFolder: (id: string) => void;
@@ -320,7 +344,10 @@ function Tile({
   onDragEnd: () => void;
   onDragOverTile: (pos: "before" | "after") => void;
   onDropTile: () => void;
+  views: View[];
+  activeViewId?: string;
 }) {
+
   const [editing, setEditing] = React.useState(false);
   const [name, setName] = React.useState(item.name);
   React.useEffect(() => setName(item.name), [item.name]);
@@ -458,7 +485,41 @@ function Tile({
                 </DropdownMenuPortal>
               </DropdownMenuSub>
             )}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Plus className="size-4" /> Add to a view
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  {views.length === 0 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">No views yet</div>
+                  ) : (
+                    views.map((v) => {
+                      const inView = v.itemIds.includes(item.id);
+                      return (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onSelect={() =>
+                            inView ? removeItemFromView(v.id, item.id) : addItemToView(v.id, item.id)
+                          }
+                        >
+                          <Folder className="size-4" />
+                          <span className="flex-1 truncate">{v.name}</span>
+                          {inView && <Star className="size-3" style={{ fill: "currentColor" }} />}
+                        </DropdownMenuItem>
+                      );
+                    })
+                  )}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            {activeViewId && (
+              <DropdownMenuItem onSelect={() => removeItemFromView(activeViewId, item.id)}>
+                <X className="size-4" /> Remove from this view
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
+
             <DropdownMenuItem
               onSelect={() => {
                 if (confirm(`Delete "${item.name}"${item.type === "folder" ? " and its contents" : ""}?`)) {
