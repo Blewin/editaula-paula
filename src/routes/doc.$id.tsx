@@ -537,12 +537,18 @@ function DocEditor() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() =>
-              navigate({
-                to: "/",
-                search: doc.parentId ? { folder: doc.parentId } : {},
-              })
-            }
+            onClick={() => {
+              if (fromView) {
+                navigate({ to: "/", search: { view: fromView } });
+              } else if (fromFolder) {
+                navigate({ to: "/", search: { folder: fromFolder } });
+              } else {
+                navigate({
+                  to: "/",
+                  search: doc.parentId ? { folder: doc.parentId } : {},
+                });
+              }
+            }}
           >
             <ArrowLeft />
           </Button>
