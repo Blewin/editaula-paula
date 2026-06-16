@@ -117,10 +117,9 @@ function Browser() {
                 key={v.id}
                 icon={<Folder className="size-4" />}
                 label={v.name}
-                active={!isStarred && currentFolder === v.folderId && view === undefined}
-                onClick={() =>
-                  navigate({ to: "/", search: v.folderId ? { folder: v.folderId } : {} })
-                }
+                active={view === v.id}
+                onClick={() => navigate({ to: "/", search: { view: v.id } })}
+
                 onDelete={() => {
                   if (confirm(`Remove view "${v.name}"?`)) deleteView(v.id);
                 }}
