@@ -162,6 +162,11 @@ function Browser() {
               <Star className="size-6" style={{ fill: "currentColor", fillOpacity: 0.3 }} />
               <span className="text-foreground">Starred</span>
             </nav>
+          ) : isCustomView ? (
+            <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
+              <Folder className="size-6" />
+              <span className="text-foreground">{activeView!.name}</span>
+            </nav>
           ) : (
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
               {trail.map((b, i) => (
@@ -184,6 +189,8 @@ function Browser() {
             <div className="text-center py-24 text-muted-foreground">
               {isStarred ? (
                 <p>No starred items yet. Star a file or folder from its menu.</p>
+              ) : isCustomView ? (
+                <p>Add files or folders to this view.</p>
               ) : (
                 <>
                   <p className="mb-4">This folder is empty.</p>
@@ -198,6 +205,7 @@ function Browser() {
                 </>
               )}
             </div>
+
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
               {visible.map((item) => (
