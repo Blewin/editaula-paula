@@ -328,6 +328,8 @@ function Tile({
   onDragEnd,
   onDragOverTile,
   onDropTile,
+  views,
+  activeViewId,
 }: {
   item: Item;
   onOpenFolder: (id: string) => void;
@@ -338,7 +340,10 @@ function Tile({
   onDragEnd: () => void;
   onDragOverTile: (pos: "before" | "after") => void;
   onDropTile: () => void;
+  views: View[];
+  activeViewId?: string;
 }) {
+
   const [editing, setEditing] = React.useState(false);
   const [name, setName] = React.useState(item.name);
   React.useEffect(() => setName(item.name), [item.name]);
