@@ -35,7 +35,7 @@ import {
 
 type Search = { folder?: string; view?: string };
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     folder: typeof s.folder === "string" ? s.folder : undefined,
     view: typeof s.view === "string" ? s.view : undefined,
