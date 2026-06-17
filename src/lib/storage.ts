@@ -327,9 +327,10 @@ export function updateView(id: string, patch: Partial<Omit<View, "id">>) {
   const dbPatch: Record<string, unknown> = {};
   if (patch.name !== undefined) dbPatch.name = patch.name;
   if (Object.keys(dbPatch).length === 0) return;
-  void supabase.from("views").update(dbPatch).eq("id", id).then(({ error }) => {
+  void supabase.from("views").update(dbPatch as never).eq("id", id).then(({ error }) => {
     if (error) console.error(error);
   });
+
 }
 
 export function deleteView(id: string) {
