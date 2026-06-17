@@ -129,7 +129,27 @@ function ensureLoaded() {
   });
 }
 
-// Auth-state sync (browser only)
+// Auth-state sync + realtime (browser only)
+let _realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+function subscribeRealtime() {
+  if (_realtimeChannel || !_currentUserId) return;
+  const uid = _currentUserId;
+  _realtimeChannel = supabase
+    .channel(`store-${uid}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "items", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
+    .on("postgres_changes", { event: "*", schema: "public", table: "views", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
+    .on("postgres_changes", { event: "*", schema: "public", table: "view_items", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
+    .subscribe();
+}
+
+function unsubscribeRealtime() {
+  if (_realtimeChannel) {
+    void supabase.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+}
+
 if (typeof window !== "undefined") {
   supabase.auth.getSession().then(({ data }) => {
     const uid = data.session?.user.id ?? null;
@@ -137,20 +157,24 @@ if (typeof window !== "undefined") {
       _currentUserId = uid;
       _loaded = false;
       ensureLoaded();
+      subscribeRealtime();
     }
   });
   supabase.auth.onAuthStateChange((_event, session) => {
     const uid = session?.user.id ?? null;
     if (uid !== _currentUserId) {
+      unsubscribeRealtime();
       _currentUserId = uid;
       _loaded = false;
       _items = [];
       _views = [];
       notify();
       ensureLoaded();
+      subscribeRealtime();
     }
   });
 }
+
 
 function useStore<T>(selector: () => T): T {
   const [, force] = React.useReducer((x: number) => x + 1, 0);
