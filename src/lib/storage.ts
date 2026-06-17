@@ -256,9 +256,10 @@ export function updateItem(id: string, patch: Partial<Item>) {
   if ("starred" in patch) dbPatch.starred = !!patch.starred;
   if ("parentId" in patch) dbPatch.parent_id = patch.parentId;
   if (Object.keys(dbPatch).length === 0) return;
-  void supabase.from("items").update(dbPatch).eq("id", id).then(({ error }) => {
+  void supabase.from("items").update(dbPatch as never).eq("id", id).then(({ error }) => {
     if (error) console.error(error);
   });
+
 }
 
 export function deleteItem(id: string) {
