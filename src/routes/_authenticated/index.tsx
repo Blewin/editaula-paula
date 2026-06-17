@@ -1,6 +1,8 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
 import {
   addItemToView,
   createDoc,
@@ -35,7 +37,7 @@ import {
 
 type Search = { folder?: string; view?: string };
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     folder: typeof s.folder === "string" ? s.folder : undefined,
     view: typeof s.view === "string" ? s.view : undefined,
@@ -167,9 +169,10 @@ function Browser() {
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <div />
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
-            <div className="w-[1px]" />
+            <UserMenu />
           </div>
         </header>
+
 
         <main className="mx-auto max-w-6xl px-6 py-6">
           {isStarred ? (
@@ -260,6 +263,71 @@ function Browser() {
     </div>
   );
 }
+
+function UserMenu() {
+  const navigate = useNavigate();
+  const [user, setUser] = React.useState<{
+    name?: string;
+    email?: string;
+    avatar?: string;
+  } | null>(null);
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user;
+      if (!u) return;
+      const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
+      setUser({
+        name: (meta.full_name as string) ?? (meta.name as string) ?? u.email ?? "",
+        email: u.email ?? undefined,
+        avatar: (meta.avatar_url as string) ?? (meta.picture as string) ?? undefined,
+      });
+    });
+  }, []);
+
+  const initial =
+    (user?.name?.trim().charAt(0) || user?.email?.charAt(0) || "?").toUpperCase();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="size-9 rounded-full overflow-hidden border bg-muted flex items-center justify-center text-sm font-medium text-foreground hover:ring-2 hover:ring-ring transition"
+          aria-label="Account menu"
+        >
+          {user?.avatar ? (
+            <img src={user.avatar} alt="" className="size-full object-cover" />
+          ) : (
+            <span>{initial}</span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        {user && (
+          <>
+            <div className="px-2 py-1.5">
+              <div className="text-sm font-medium truncate">{user.name}</div>
+              {user.email && (
+                <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+              )}
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem onSelect={handleSignOut}>
+          <LogOut className="size-4" /> Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+
 
 function ViewButton({
   icon,

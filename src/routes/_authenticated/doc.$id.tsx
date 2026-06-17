@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 type DocSearch = { view?: string; folder?: string };
 
-export const Route = createFileRoute("/doc/$id")({
+export const Route = createFileRoute("/_authenticated/doc/$id")({
   validateSearch: (s: Record<string, unknown>): DocSearch => ({
     view: typeof s.view === "string" ? s.view : undefined,
     folder: typeof s.folder === "string" ? s.folder : undefined,

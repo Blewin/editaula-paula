@@ -1,4 +1,5 @@
 import * as React from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Item =
   | {
@@ -20,150 +21,191 @@ export type Item =
       starred?: boolean;
     };
 
-const KEY = "md-editor-items-v1";
+export type View = {
+  id: string;
+  name: string;
+  itemIds: string[];
+};
 
 export const FOLDER_COLORS = [
-  "#94a3b8", // slate
-  "#64748b", // slate dark
-  "#f59e0b", // amber
-  "#fbbf24", // amber light
-  "#d97706", // amber dark
-  "#10b981", // emerald
-  "#34d399", // emerald light
-  "#059669", // emerald dark
-  "#84cc16", // lime
-  "#22c55e", // green
-  "#3b82f6", // blue
-  "#60a5fa", // blue light
-  "#1d4ed8", // blue dark
-  "#0ea5e9", // sky
-  "#6366f1", // indigo
-  "#a855f7", // purple
-  "#c084fc", // purple light
-  "#7c3aed", // violet
-  "#d946ef", // fuchsia
-  "#ef4444", // red
-  "#f87171", // red light
-  "#b91c1c", // red dark
-  "#ec4899", // pink
-  "#f472b6", // pink light
-  "#14b8a6", // teal
+  "#94a3b8", "#64748b", "#f59e0b", "#fbbf24", "#d97706",
+  "#10b981", "#34d399", "#059669", "#84cc16", "#22c55e",
+  "#3b82f6", "#60a5fa", "#1d4ed8", "#0ea5e9", "#6366f1",
+  "#a855f7", "#c084fc", "#7c3aed", "#d946ef", "#ef4444",
+  "#f87171", "#b91c1c", "#ec4899", "#f472b6", "#14b8a6",
 ];
 
-function read(): Item[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Item[]) : [];
-  } catch {
-    return [];
+// ---------- In-memory cache + subscribers ----------
+
+type ItemRow = {
+  id: string;
+  user_id: string;
+  type: "doc" | "folder";
+  name: string;
+  parent_id: string | null;
+  content: string;
+  color: string;
+  starred: boolean;
+  position: number;
+  updated_at: string;
+};
+
+type ViewRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  position: number;
+};
+
+type ViewItemRow = {
+  view_id: string;
+  item_id: string;
+  user_id: string;
+  position: number;
+};
+
+let _items: Item[] = [];
+let _views: View[] = [];
+let _currentUserId: string | null = null;
+let _loaded = false;
+let _loadingPromise: Promise<void> | null = null;
+const _subs = new Set<() => void>();
+
+function notify() {
+  for (const s of _subs) s();
+}
+
+function rowToItem(r: ItemRow): Item {
+  const base = {
+    id: r.id,
+    name: r.name,
+    parentId: r.parent_id,
+    starred: r.starred,
+    updatedAt: new Date(r.updated_at).getTime(),
+  };
+  if (r.type === "doc") {
+    return { ...base, type: "doc", content: r.content } as Item;
+  }
+  return { ...base, type: "folder", color: r.color } as Item;
+}
+
+async function loadAll() {
+  if (!_currentUserId) {
+    _items = [];
+    _views = [];
+    _loaded = true;
+    notify();
+    return;
+  }
+  const [itemsRes, viewsRes, viewItemsRes] = await Promise.all([
+    supabase.from("items").select("*").order("position", { ascending: true }),
+    supabase.from("views").select("*").order("position", { ascending: true }),
+    supabase.from("view_items").select("*").order("position", { ascending: true }),
+  ]);
+  if (itemsRes.error) console.error(itemsRes.error);
+  if (viewsRes.error) console.error(viewsRes.error);
+  if (viewItemsRes.error) console.error(viewItemsRes.error);
+
+  _items = (itemsRes.data ?? []).map((r) => rowToItem(r as ItemRow));
+  const viewItemsByView = new Map<string, string[]>();
+  for (const vi of (viewItemsRes.data ?? []) as ViewItemRow[]) {
+    const arr = viewItemsByView.get(vi.view_id) ?? [];
+    arr.push(vi.item_id);
+    viewItemsByView.set(vi.view_id, arr);
+  }
+  _views = ((viewsRes.data ?? []) as ViewRow[]).map((v) => ({
+    id: v.id,
+    name: v.name,
+    itemIds: viewItemsByView.get(v.id) ?? [],
+  }));
+  _loaded = true;
+  notify();
+}
+
+function ensureLoaded() {
+  if (_loaded || _loadingPromise) return;
+  _loadingPromise = loadAll().finally(() => {
+    _loadingPromise = null;
+  });
+}
+
+// Auth-state sync + realtime (browser only)
+let _realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+function subscribeRealtime() {
+  if (_realtimeChannel || !_currentUserId) return;
+  const uid = _currentUserId;
+  _realtimeChannel = supabase
+    .channel(`store-${uid}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "items", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
+    .on("postgres_changes", { event: "*", schema: "public", table: "views", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
+    .on("postgres_changes", { event: "*", schema: "public", table: "view_items", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
+    .subscribe();
+}
+
+function unsubscribeRealtime() {
+  if (_realtimeChannel) {
+    void supabase.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
   }
 }
 
-function write(items: Item[]) {
-  localStorage.setItem(KEY, JSON.stringify(items));
-  window.dispatchEvent(new Event("md-items-changed"));
+if (typeof window !== "undefined") {
+  supabase.auth.getSession().then(({ data }) => {
+    const uid = data.session?.user.id ?? null;
+    if (uid !== _currentUserId) {
+      _currentUserId = uid;
+      _loaded = false;
+      ensureLoaded();
+      subscribeRealtime();
+    }
+  });
+  supabase.auth.onAuthStateChange((_event, session) => {
+    const uid = session?.user.id ?? null;
+    if (uid !== _currentUserId) {
+      unsubscribeRealtime();
+      _currentUserId = uid;
+      _loaded = false;
+      _items = [];
+      _views = [];
+      notify();
+      ensureLoaded();
+      subscribeRealtime();
+    }
+  });
 }
 
-export function useItems() {
-  const [items, setItems] = React.useState<Item[]>(() => read());
+
+function useStore<T>(selector: () => T): T {
+  const [, force] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => {
-    const sync = () => setItems(read());
-    sync();
-    window.addEventListener("md-items-changed", sync);
-    window.addEventListener("storage", sync);
+    ensureLoaded();
+    const cb = () => force();
+    _subs.add(cb);
     return () => {
-      window.removeEventListener("md-items-changed", sync);
-      window.removeEventListener("storage", sync);
+      _subs.delete(cb);
     };
   }, []);
-  return items;
+  return selector();
 }
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+export function useItems(): Item[] {
+  return useStore(() => _items);
 }
 
-export function createDoc(parentId: string | null, name = "Untitled"): string {
-  const items = read();
-  const id = uid();
-  items.push({
-    id,
-    type: "doc",
-    name,
-    parentId,
-    content: `# ${name}\n\nStart writing...`,
-    updatedAt: Date.now(),
-  });
-  write(items);
-  return id;
-}
-
-export function createFolder(parentId: string | null, name = "New folder"): string {
-  const items = read();
-  const id = uid();
-  items.push({
-    id,
-    type: "folder",
-    name,
-    parentId,
-    color: FOLDER_COLORS[0],
-    updatedAt: Date.now(),
-  });
-  write(items);
-  return id;
-}
-
-export function updateItem(id: string, patch: Partial<Item>) {
-  const items = read();
-  const idx = items.findIndex((i) => i.id === id);
-  if (idx === -1) return;
-  items[idx] = { ...items[idx], ...patch, updatedAt: Date.now() } as Item;
-  write(items);
-}
-
-export function deleteItem(id: string) {
-  let items = read();
-  // recursive: collect descendants
-  const toDelete = new Set<string>([id]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const it of items) {
-      if (it.parentId && toDelete.has(it.parentId) && !toDelete.has(it.id)) {
-        toDelete.add(it.id);
-        changed = true;
-      }
-    }
-  }
-  items = items.filter((i) => !toDelete.has(i.id));
-  write(items);
-}
-
-export function reorderItem(activeId: string, overId: string, position: "before" | "after" = "before") {
-  if (activeId === overId) return;
-  const items = read();
-  const activeIdx = items.findIndex((i) => i.id === activeId);
-  const overIdx = items.findIndex((i) => i.id === overId);
-  if (activeIdx === -1 || overIdx === -1) return;
-  if (items[activeIdx].parentId !== items[overIdx].parentId) return;
-  const [moved] = items.splice(activeIdx, 1);
-  const newOverIdx = items.findIndex((i) => i.id === overId);
-  const insertAt = position === "after" ? newOverIdx + 1 : newOverIdx;
-  items.splice(insertAt, 0, moved);
-  write(items);
+export function useViews(): View[] {
+  return useStore(() => _views);
 }
 
 export function getItem(id: string): Item | undefined {
-  return read().find((i) => i.id === id);
+  return _items.find((i) => i.id === id);
 }
 
 export function getBreadcrumb(folderId: string | null): { id: string | null; name: string }[] {
-  const items = read();
   const trail: { id: string | null; name: string }[] = [];
   let current = folderId;
   while (current) {
-    const f = items.find((i) => i.id === current);
+    const f = _items.find((i) => i.id === current);
     if (!f || f.type !== "folder") break;
     trail.unshift({ id: f.id, name: f.name });
     current = f.parentId;
@@ -172,86 +214,176 @@ export function getBreadcrumb(folderId: string | null): { id: string | null; nam
   return trail;
 }
 
+function nextPosition(filter: (i: Item) => boolean): number {
+  const siblings = _items.filter(filter);
+  const max = siblings.reduce((m, i) => Math.max(m, (i as Item & { position?: number }).updatedAt), 0);
+  return Math.max(Date.now(), max + 1);
+}
+
+// ---------- Mutations ----------
+
+function genId(): string {
+  return (typeof crypto !== "undefined" && "randomUUID" in crypto)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+export function createDoc(parentId: string | null, name = "Untitled"): string {
+  const id = genId();
+  if (!_currentUserId) return id;
+  const content = `# ${name}\n\nStart writing...`;
+  const position = nextPosition((i) => i.parentId === parentId);
+  const newItem: Item = {
+    id, type: "doc", name, parentId, content, updatedAt: Date.now(), starred: false,
+  };
+  _items = [..._items, newItem];
+  notify();
+  void supabase.from("items").insert({
+    id, user_id: _currentUserId, type: "doc", name, parent_id: parentId,
+    content, position,
+  }).then(({ error }) => { if (error) console.error(error); });
+  return id;
+}
+
+export function createFolder(parentId: string | null, name = "New folder"): string {
+  const id = genId();
+  if (!_currentUserId) return id;
+  const color = FOLDER_COLORS[0];
+  const position = nextPosition((i) => i.parentId === parentId);
+  const newItem: Item = {
+    id, type: "folder", name, parentId, color, updatedAt: Date.now(), starred: false,
+  };
+  _items = [..._items, newItem];
+  notify();
+  void supabase.from("items").insert({
+    id, user_id: _currentUserId, type: "folder", name, parent_id: parentId,
+    color, position,
+  }).then(({ error }) => { if (error) console.error(error); });
+  return id;
+}
+
+export function updateItem(id: string, patch: Partial<Item>) {
+  const idx = _items.findIndex((i) => i.id === id);
+  if (idx === -1) return;
+  _items = _items.map((i, k) =>
+    k === idx ? ({ ...i, ...patch, updatedAt: Date.now() } as Item) : i,
+  );
+  notify();
+  const dbPatch: Record<string, unknown> = {};
+  if ("name" in patch) dbPatch.name = patch.name;
+  if ("content" in patch && (patch as { content?: string }).content !== undefined) {
+    dbPatch.content = (patch as { content?: string }).content;
+  }
+  if ("color" in patch && (patch as { color?: string }).color !== undefined) {
+    dbPatch.color = (patch as { color?: string }).color;
+  }
+  if ("starred" in patch) dbPatch.starred = !!patch.starred;
+  if ("parentId" in patch) dbPatch.parent_id = patch.parentId;
+  if (Object.keys(dbPatch).length === 0) return;
+  void supabase.from("items").update(dbPatch as never).eq("id", id).then(({ error }) => {
+    if (error) console.error(error);
+  });
+
+}
+
+export function deleteItem(id: string) {
+  // collect descendants
+  const toDelete = new Set<string>([id]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const it of _items) {
+      if (it.parentId && toDelete.has(it.parentId) && !toDelete.has(it.id)) {
+        toDelete.add(it.id);
+        changed = true;
+      }
+    }
+  }
+  _items = _items.filter((i) => !toDelete.has(i.id));
+  _views = _views.map((v) => ({ ...v, itemIds: v.itemIds.filter((i) => !toDelete.has(i)) }));
+  notify();
+  // DB cascade handles children via parent_id FK; delete root only
+  void supabase.from("items").delete().eq("id", id).then(({ error }) => {
+    if (error) console.error(error);
+  });
+}
+
+export function reorderItem(activeId: string, overId: string, position: "before" | "after" = "before") {
+  if (activeId === overId) return;
+  const activeIdx = _items.findIndex((i) => i.id === activeId);
+  const overIdx = _items.findIndex((i) => i.id === overId);
+  if (activeIdx === -1 || overIdx === -1) return;
+  if (_items[activeIdx].parentId !== _items[overIdx].parentId) return;
+  const next = [..._items];
+  const [moved] = next.splice(activeIdx, 1);
+  const newOverIdx = next.findIndex((i) => i.id === overId);
+  const insertAt = position === "after" ? newOverIdx + 1 : newOverIdx;
+  next.splice(insertAt, 0, moved);
+  _items = next;
+  notify();
+  // Recompute positions for siblings
+  const parentId = moved.parentId;
+  const siblings = _items.filter((i) => i.parentId === parentId);
+  void Promise.all(
+    siblings.map((it, idx) =>
+      supabase.from("items").update({ position: idx + 1 }).eq("id", it.id),
+    ),
+  ).catch((e) => console.error(e));
+}
+
 // ---------- Views ----------
 
-export type View = {
-  id: string;
-  name: string;
-  itemIds: string[];
-};
-
-const VIEWS_KEY = "md-editor-views-v1";
-
-function readViews(): View[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(VIEWS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Array<Partial<View>>;
-    // Migrate legacy { folderId } shape into { itemIds: [] }.
-    return parsed.map((v) => ({
-      id: v.id as string,
-      name: v.name as string,
-      itemIds: Array.isArray(v.itemIds) ? v.itemIds : [],
-    }));
-  } catch {
-    return [];
-  }
-}
-
-function writeViews(views: View[]) {
-  localStorage.setItem(VIEWS_KEY, JSON.stringify(views));
-  window.dispatchEvent(new Event("md-views-changed"));
-}
-
-export function useViews() {
-  const [views, setViews] = React.useState<View[]>(() => readViews());
-  React.useEffect(() => {
-    const sync = () => setViews(readViews());
-    sync();
-    window.addEventListener("md-views-changed", sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener("md-views-changed", sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-  return views;
-}
-
 export function createView(name: string): string {
-  const views = readViews();
-  const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-  views.push({ id, name, itemIds: [] });
-  writeViews(views);
+  const id = genId();
+  if (!_currentUserId) return id;
+  const position = Date.now();
+  _views = [..._views, { id, name, itemIds: [] }];
+  notify();
+  void supabase.from("views").insert({
+    id, user_id: _currentUserId, name, position,
+  }).then(({ error }) => { if (error) console.error(error); });
   return id;
 }
 
 export function updateView(id: string, patch: Partial<Omit<View, "id">>) {
-  const views = readViews();
-  const idx = views.findIndex((v) => v.id === id);
-  if (idx === -1) return;
-  views[idx] = { ...views[idx], ...patch };
-  writeViews(views);
+  _views = _views.map((v) => (v.id === id ? { ...v, ...patch } : v));
+  notify();
+  const dbPatch: Record<string, unknown> = {};
+  if (patch.name !== undefined) dbPatch.name = patch.name;
+  if (Object.keys(dbPatch).length === 0) return;
+  void supabase.from("views").update(dbPatch as never).eq("id", id).then(({ error }) => {
+    if (error) console.error(error);
+  });
+
 }
 
 export function deleteView(id: string) {
-  writeViews(readViews().filter((v) => v.id !== id));
+  _views = _views.filter((v) => v.id !== id);
+  notify();
+  void supabase.from("views").delete().eq("id", id).then(({ error }) => {
+    if (error) console.error(error);
+  });
 }
 
 export function addItemToView(viewId: string, itemId: string) {
-  const views = readViews();
-  const idx = views.findIndex((v) => v.id === viewId);
-  if (idx === -1) return;
-  if (views[idx].itemIds.includes(itemId)) return;
-  views[idx] = { ...views[idx], itemIds: [...views[idx].itemIds, itemId] };
-  writeViews(views);
+  if (!_currentUserId) return;
+  const v = _views.find((x) => x.id === viewId);
+  if (!v || v.itemIds.includes(itemId)) return;
+  _views = _views.map((x) =>
+    x.id === viewId ? { ...x, itemIds: [...x.itemIds, itemId] } : x,
+  );
+  notify();
+  void supabase.from("view_items").insert({
+    view_id: viewId, item_id: itemId, user_id: _currentUserId, position: Date.now(),
+  }).then(({ error }) => { if (error) console.error(error); });
 }
 
 export function removeItemFromView(viewId: string, itemId: string) {
-  const views = readViews();
-  const idx = views.findIndex((v) => v.id === viewId);
-  if (idx === -1) return;
-  views[idx] = { ...views[idx], itemIds: views[idx].itemIds.filter((i) => i !== itemId) };
-  writeViews(views);
+  _views = _views.map((x) =>
+    x.id === viewId ? { ...x, itemIds: x.itemIds.filter((i) => i !== itemId) } : x,
+  );
+  notify();
+  void supabase.from("view_items").delete()
+    .eq("view_id", viewId).eq("item_id", itemId)
+    .then(({ error }) => { if (error) console.error(error); });
 }
