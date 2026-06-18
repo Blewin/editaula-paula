@@ -516,7 +516,7 @@ function DocEditor() {
                   const from = Number(e.dataTransfer.getData("text/plain"));
                   if (!Number.isNaN(from)) reorderSheetParagraphs(s, from, i);
                 }}
-                className="cursor-move w-full rounded-md border bg-background px-4 py-3 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words"
+                className="cursor-move w-full rounded-md border bg-background px-4 py-2 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words"
               >
                 {p}
               </div>
