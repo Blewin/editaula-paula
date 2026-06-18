@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X, LogOut } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X, LogOut, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 import {
@@ -36,6 +36,57 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 type Search = { folder?: string; view?: string };
+
+function downloadBackup(items: Item[], views: View[]) {
+  const viewsByItem = new Map<string, string[]>();
+  for (const v of views) {
+    for (const id of v.itemIds) {
+      const arr = viewsByItem.get(id) ?? [];
+      arr.push(v.name);
+      viewsByItem.set(id, arr);
+    }
+  }
+  const pathOf = (id: string | null): string => {
+    if (!id) return "";
+    const parts: string[] = [];
+    let cur: string | null = id;
+    const seen = new Set<string>();
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      const f = items.find((i) => i.id === cur);
+      if (!f) break;
+      parts.unshift(f.name);
+      cur = f.parentId;
+    }
+    return "/" + parts.join("/");
+  };
+  const exported = items.map((i) => ({
+    id: i.id,
+    type: i.type,
+    name: i.name,
+    path: pathOf(i.parentId),
+    parentId: i.parentId,
+    starred: !!i.starred,
+    views: viewsByItem.get(i.id) ?? [],
+    updatedAt: new Date(i.updatedAt).toISOString(),
+    ...(i.type === "doc" ? { content: i.content } : { color: i.color }),
+  }));
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    views: views.map((v) => ({ id: v.id, name: v.name, itemIds: v.itemIds })),
+    items: exported,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  a.href = url;
+  a.download = `editaula-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export const Route = createFileRoute("/_authenticated/")({
   validateSearch: (s: Record<string, unknown>): Search => ({
@@ -169,7 +220,12 @@ function Browser() {
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <div />
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
-            <UserMenu />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => downloadBackup(items, views)}>
+                <Download className="size-4" /> Download
+              </Button>
+              <UserMenu />
+            </div>
           </div>
         </header>
 
