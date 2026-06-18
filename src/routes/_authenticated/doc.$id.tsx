@@ -111,7 +111,7 @@ function TabItem({
         else onSelect();
       }}
       onDoubleClick={() => setEditing(true)}
-      className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
+      className={`text-left text-sm px-3 py-1 rounded-md truncate transition-colors ${
         isActive
           ? "bg-accent text-accent-foreground font-medium"
           : "hover:bg-muted text-muted-foreground"
