@@ -459,7 +459,7 @@ function DocEditor() {
             <div
               key={i}
               onClick={() => focusLine(s, i)}
-              className="my-1 cursor-text min-h-[1.5rem]"
+              className="my-0 cursor-text min-h-[1.25rem]"
               dangerouslySetInnerHTML={{ __html: renderLine(line) }}
             />
           ),
