@@ -97,7 +97,7 @@ function TabItem({
             setEditing(false);
           }
         }}
-        className={`text-left text-sm px-3 py-2 rounded-md outline-none ${
+        className={`text-left text-sm px-3 py-1 rounded-md outline-none ${
           isActive ? "font-medium" : ""
         }`}
       />
