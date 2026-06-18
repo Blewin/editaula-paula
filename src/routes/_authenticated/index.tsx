@@ -169,7 +169,12 @@ function Browser() {
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <div />
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
-            <UserMenu />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => downloadBackup(items, views)}>
+                <Download className="size-4" /> Download
+              </Button>
+              <UserMenu />
+            </div>
           </div>
         </header>
 
