@@ -438,7 +438,7 @@ function DocEditor() {
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-6 leading-relaxed ${borderRadius}`}
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) focusLine(s, lines.length - 1);
         }}
