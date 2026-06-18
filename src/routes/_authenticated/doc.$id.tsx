@@ -595,7 +595,7 @@ function DocEditor() {
 
         <div className="flex gap-4">
           {tabsVisible && (
-            <aside className="w-44 shrink-0 pt-10">
+            <aside className="w-44 shrink-0 pt-16">
               <Button
                 variant="outline"
                 className="w-full justify-start gap-2 mb-1 text-sm"
