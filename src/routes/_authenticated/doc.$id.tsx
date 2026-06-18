@@ -452,7 +452,7 @@ function DocEditor() {
               onChange={(e) => onLineChange(e.target.value)}
               onKeyDown={onKeyDown}
               rows={1}
-              className="block w-full resize-none bg-transparent outline-none my-1 overflow-hidden"
+              className="block w-full resize-none bg-transparent outline-none my-0 overflow-hidden"
               spellCheck={false}
             />
           ) : (
