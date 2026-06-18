@@ -97,7 +97,7 @@ function TabItem({
             setEditing(false);
           }
         }}
-        className={`text-left text-sm px-3 py-2 rounded-md outline-none ${
+        className={`text-left text-sm px-3 py-1 rounded-md outline-none ${
           isActive ? "font-medium" : ""
         }`}
       />
@@ -111,7 +111,7 @@ function TabItem({
         else onSelect();
       }}
       onDoubleClick={() => setEditing(true)}
-      className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
+      className={`text-left text-sm px-3 py-1 rounded-md truncate transition-colors ${
         isActive
           ? "bg-accent text-accent-foreground font-medium"
           : "hover:bg-muted text-muted-foreground"
@@ -438,7 +438,7 @@ function DocEditor() {
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-6 leading-relaxed ${borderRadius}`}
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) focusLine(s, lines.length - 1);
         }}
@@ -452,14 +452,14 @@ function DocEditor() {
               onChange={(e) => onLineChange(e.target.value)}
               onKeyDown={onKeyDown}
               rows={1}
-              className="block w-full resize-none bg-transparent outline-none my-1 overflow-hidden"
+              className="block w-full resize-none bg-transparent outline-none my-0 overflow-hidden"
               spellCheck={false}
             />
           ) : (
             <div
               key={i}
               onClick={() => focusLine(s, i)}
-              className="my-1 cursor-text min-h-[1.5rem]"
+              className="my-0 cursor-text min-h-[1.25rem]"
               dangerouslySetInnerHTML={{ __html: renderLine(line) }}
             />
           ),
@@ -498,7 +498,7 @@ function DocEditor() {
         {paragraphs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No paragraphs yet.</p>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1">
             {paragraphs.map((p, i) => (
               <div
                 key={i}
@@ -516,7 +516,7 @@ function DocEditor() {
                   const from = Number(e.dataTransfer.getData("text/plain"));
                   if (!Number.isNaN(from)) reorderSheetParagraphs(s, from, i);
                 }}
-                className="cursor-move w-full rounded-md border bg-background px-4 py-3 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words"
+                className="cursor-move w-full rounded-md border bg-background px-4 py-2 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words"
               >
                 {p}
               </div>
@@ -583,7 +583,7 @@ function DocEditor() {
         </div>
       </header>
 
-      <div className="flex-1 mx-auto w-full px-6 py-8 relative max-w-4xl">
+      <div className="flex-1 mx-auto w-full px-6 py-4 relative max-w-4xl">
         <button
           onClick={() => setTabsVisible((v) => !v)}
           className="absolute left-6 top-8 z-10 h-8 w-8 inline-flex items-center justify-center rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm transition-colors"
@@ -598,7 +598,7 @@ function DocEditor() {
             <aside className="w-44 shrink-0 pt-10">
               <Button
                 variant="outline"
-                className="w-full justify-start gap-2 mb-2 text-sm"
+                className="w-full justify-start gap-2 mb-1 text-sm"
                 onClick={addTab}
               >
                 <Plus className="h-4 w-4" />
