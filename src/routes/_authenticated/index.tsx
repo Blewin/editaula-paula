@@ -37,6 +37,57 @@ import {
 
 type Search = { folder?: string; view?: string };
 
+function downloadBackup(items: Item[], views: View[]) {
+  const viewsByItem = new Map<string, string[]>();
+  for (const v of views) {
+    for (const id of v.itemIds) {
+      const arr = viewsByItem.get(id) ?? [];
+      arr.push(v.name);
+      viewsByItem.set(id, arr);
+    }
+  }
+  const pathOf = (id: string | null): string => {
+    if (!id) return "";
+    const parts: string[] = [];
+    let cur: string | null = id;
+    const seen = new Set<string>();
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      const f = items.find((i) => i.id === cur);
+      if (!f) break;
+      parts.unshift(f.name);
+      cur = f.parentId;
+    }
+    return "/" + parts.join("/");
+  };
+  const exported = items.map((i) => ({
+    id: i.id,
+    type: i.type,
+    name: i.name,
+    path: pathOf(i.parentId),
+    parentId: i.parentId,
+    starred: !!i.starred,
+    views: viewsByItem.get(i.id) ?? [],
+    updatedAt: new Date(i.updatedAt).toISOString(),
+    ...(i.type === "doc" ? { content: i.content } : { color: i.color }),
+  }));
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    views: views.map((v) => ({ id: v.id, name: v.name, itemIds: v.itemIds })),
+    items: exported,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  a.href = url;
+  a.download = `editaula-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const Route = createFileRoute("/_authenticated/")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     folder: typeof s.folder === "string" ? s.folder : undefined,
