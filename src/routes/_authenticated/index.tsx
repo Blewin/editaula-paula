@@ -263,11 +263,11 @@ function Browser() {
             <div className="text-center py-24 text-muted-foreground">
               {isStarred ? (
                 <p>No starred items yet. Star a file or folder from its menu.</p>
-              ) : isCustomView ? (
-                <p>Add files or folders to this view.</p>
               ) : (
                 <>
-                  <p className="mb-4">This folder is empty.</p>
+                  <p className="mb-4">
+                    {isCustomView ? "This view is empty." : "This folder is empty."}
+                  </p>
                   <div className="flex justify-center gap-2">
                     <Button variant="outline" onClick={handleNewFolder}>
                       <FolderPlus /> New folder
