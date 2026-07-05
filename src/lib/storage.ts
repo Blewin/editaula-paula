@@ -175,6 +175,32 @@ async function writeSidecar() {
 // ---------- Walk the tree ----------
 type DirEntries = AsyncIterable<[string, FileSystemHandle]>;
 
+async function readDocPreview(
+  dir: FileSystemDirectoryHandle,
+  tabs: string[],
+): Promise<string> {
+  // Try `<firstTab> - Page 1.md`, then any `<tab> - Page N.md` we find.
+  const candidates: string[] = [];
+  const first = tabs[0];
+  if (first) candidates.push(`${first} - Page 1.md`);
+  for (const t of tabs) {
+    for (let i = 1; i <= 3; i++) {
+      const name = `${t} - Page ${i}.md`;
+      if (!candidates.includes(name)) candidates.push(name);
+    }
+  }
+  for (const filename of candidates) {
+    try {
+      const fh = await dir.getFileHandle(filename);
+      const file = await fh.getFile();
+      const text = await file.text();
+      const trimmed = text.trim();
+      if (trimmed.length > 0) return trimmed.slice(0, 280);
+    } catch { /* not present */ }
+  }
+  return "";
+}
+
 async function walk(dir: FileSystemDirectoryHandle, parentPath: string, parentId: string | null): Promise<Item[]> {
   const out: Item[] = [];
   const entries = (dir as unknown as { entries: () => DirEntries }).entries();
