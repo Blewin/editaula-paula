@@ -157,14 +157,9 @@ function DocEditor() {
   const [tabs, setTabs] = React.useState<Tab[]>(initialTabs);
   const [activeTab, setActiveTab] = React.useState(0);
   const [sheets, setSheets] = React.useState<string[]>(splitSheets(initialTabs[0].content));
-  const [active, setActive] = React.useState<{ sheet: number; line: number }>({
-    sheet: 0,
-    line: 0,
-  });
-  const [caretPos, setCaretPos] = React.useState<number | null>(null);
+  const [activeSheet, setActiveSheet] = React.useState(0);
   const [view, setView] = React.useState<"document" | "tiles">("document");
   const [pageLayout, setPageLayout] = React.useState<PageLayout>("verticalAll");
-  const inputRef = React.useRef<HTMLDivElement>(null);
   const mainRef = React.useRef<HTMLElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
