@@ -553,12 +553,7 @@ async function copyDirectoryContents(
     }
   }
 }
-      }
-      scheduleSidecarWrite();
-    } catch (e) { console.error(e); }
-  })();
-  return newId;
-}
+
 
 export function deleteItem(id: string) {
   const item = _items.find((i) => i.id === id);
