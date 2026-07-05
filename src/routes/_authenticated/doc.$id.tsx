@@ -217,8 +217,7 @@ function DocEditor() {
     setTabs(next);
     setActiveTab(next.length - 1);
     setSheets(splitSheets(""));
-    setActive({ sheet: 0, line: 0 });
-    setCaretPos(0);
+    setActiveSheet(0);
   };
 
   const renameTab = (idx: number, newName: string) => {
