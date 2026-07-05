@@ -407,7 +407,7 @@ export function createFolder(parentId: string | null, name = "New folder"): stri
   return id;
 }
 
-export function updateItem(id: string, patch: Partial<Item>) {
+export function updateItem(id: string, patch: Partial<Item>): string {
   const idx = _items.findIndex((i) => i.id === id);
   if (idx === -1) return;
   const cur = _items[idx];
