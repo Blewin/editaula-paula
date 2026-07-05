@@ -186,10 +186,12 @@ async function walk(dir: FileSystemDirectoryHandle, parentPath: string, parentId
         // Doc-folder: surface as one doc item, do not recurse.
         const id = idDoc(path);
         const meta = _sidecar.meta[id] ?? {};
+        const preview = await readDocPreview(handle as FileSystemDirectoryHandle, _sidecar.docs[path].tabs);
         out.push({
           id, type: "doc", name, parentId,
           starred: !!meta.starred,
           updatedAt: Date.now(),
+          preview,
         });
       } else {
         const id = idFolder(path);
