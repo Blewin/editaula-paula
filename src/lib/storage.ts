@@ -502,18 +502,58 @@ function performRename(cur: Item, newName: string): string | null {
     try {
       const parentDir = await resolveDir(parentPath);
       const oldLeaf = oldPath.split("/").pop()!;
-      const dh = await parentDir.getDirectoryHandle(oldLeaf);
-      const withMove = dh as FileSystemDirectoryHandle & { move?: (n: string) => Promise<void> };
-      if (typeof withMove.move === "function") {
-        await withMove.move(newName);
-      } else {
-        console.warn("Directory rename is not supported in this browser");
-      }
+      await renameDirectory(parentDir, oldLeaf, newName);
       scheduleSidecarWrite();
     } catch (e) { console.error(e); }
   })();
   return newId;
 }
+
+// Rename a directory inside `parent`. Prefers native `move()`, falls back to
+// a recursive copy + remove so it works in browsers where `move()` on
+// directories isn't implemented yet.
+async function renameDirectory(
+  parent: FileSystemDirectoryHandle,
+  oldName: string,
+  newName: string,
+): Promise<void> {
+  if (oldName === newName) return;
+  const src = await parent.getDirectoryHandle(oldName);
+  const withMove = src as FileSystemDirectoryHandle & { move?: (n: string) => Promise<void> };
+  if (typeof withMove.move === "function") {
+    try {
+      await withMove.move(newName);
+      return;
+    } catch (e) {
+      console.warn("Native directory move failed, falling back to copy:", e);
+    }
+  }
+  const dst = await parent.getDirectoryHandle(newName, { create: true });
+  await copyDirectoryContents(src, dst);
+  await parent.removeEntry(oldName, { recursive: true });
+}
+
+async function copyDirectoryContents(
+  src: FileSystemDirectoryHandle,
+  dst: FileSystemDirectoryHandle,
+): Promise<void> {
+  const entries = (src as unknown as { entries: () => DirEntries }).entries();
+  for await (const [name, handle] of entries) {
+    if (handle.kind === "file") {
+      const srcFh = handle as FileSystemFileHandle;
+      const file = await srcFh.getFile();
+      const dstFh = await dst.getFileHandle(name, { create: true });
+      const w = await dstFh.createWritable();
+      await w.write(await file.arrayBuffer());
+      await w.close();
+    } else if (handle.kind === "directory") {
+      const srcDh = handle as FileSystemDirectoryHandle;
+      const dstDh = await dst.getDirectoryHandle(name, { create: true });
+      await copyDirectoryContents(srcDh, dstDh);
+    }
+  }
+}
+
 
 export function deleteItem(id: string) {
   const item = _items.find((i) => i.id === id);
