@@ -4,6 +4,7 @@ import {
   ViewPlugin,
   WidgetType,
   keymap,
+  drawSelection,
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
@@ -334,12 +335,8 @@ const editorTheme = EditorView.theme({
     verticalAlign: "middle",
     margin: "0.5em 0",
   },
-  "& .cm-selectionLayer .cm-selectionBackground, &.cm-focused .cm-selectionLayer .cm-selectionBackground": {
-    backgroundColor: "color-mix(in oklab, var(--text-accent, hsl(var(--primary))) 42%, transparent) !important",
-  },
-  "& .cm-content::selection, & .cm-content ::selection, & .cm-line::selection, & .cm-line ::selection": {
-    backgroundColor: "color-mix(in oklab, var(--text-accent, hsl(var(--primary))) 42%, transparent) !important",
-    color: "inherit !important",
+  "& .cm-selectionLayer .cm-selectionBackground, &.cm-focused .cm-selectionLayer .cm-selectionBackground, & ::selection": {
+    background: "color-mix(in oklab, var(--text-accent, hsl(var(--primary))) 35%, transparent) !important",
   },
 });
 
@@ -372,6 +369,7 @@ export function createMarkdownEditor(parent: HTMLElement, opts: MarkdownEditorOp
     doc: opts.value,
     extensions: [
       history(),
+      drawSelection(),
       markdown({ base: markdownLanguage, addKeymap: true }),
       livePreviewPlugin,
       editorTheme,
