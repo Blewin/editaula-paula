@@ -5,6 +5,7 @@ import {
   WidgetType,
   keymap,
   drawSelection,
+  dropCursor,
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
