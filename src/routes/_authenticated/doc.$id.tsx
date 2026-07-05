@@ -204,8 +204,7 @@ function DocEditor() {
     setTabs(committed);
     setActiveTab(idx);
     setSheets(splitSheets(committed[idx]?.content ?? ""));
-    setActive({ sheet: 0, line: 0 });
-    setCaretPos(0);
+    setActiveSheet(0);
   };
 
   const addTab = () => {
