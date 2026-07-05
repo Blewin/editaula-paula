@@ -4,6 +4,7 @@ import {
   ViewPlugin,
   WidgetType,
   keymap,
+  drawSelection,
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
