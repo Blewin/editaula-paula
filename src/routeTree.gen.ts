@@ -9,68 +9,50 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as AuthenticatedDocIdRouteImport } from './routes/_authenticated/doc.$id'
+import { Route as IndexRouteImport } from './routes/index'
 
-const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
-  id: '/_authenticated/',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedDocIdRoute = AuthenticatedDocIdRouteImport.update({
-  id: '/_authenticated/doc/$id',
-  path: '/doc/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedIndexRoute
-  '/doc/$id': typeof AuthenticatedDocIdRoute
+  '/': typeof IndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AuthenticatedIndexRoute
-  '/doc/$id': typeof AuthenticatedDocIdRoute
+  '/': typeof IndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_authenticated/': typeof AuthenticatedIndexRoute
-  '/_authenticated/doc/$id': typeof AuthenticatedDocIdRoute
+  '/': typeof IndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/doc/$id'
+  fullPaths: '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/doc/$id'
-  id: '__root__' | '/_authenticated/' | '/_authenticated/doc/$id'
+  to: '/'
+  id: '__root__' | '/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
-  AuthenticatedDocIdRoute: typeof AuthenticatedDocIdRoute
+  IndexRoute: typeof IndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_authenticated/': {
-      id: '/_authenticated/'
+    '/': {
+      id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/doc/$id': {
-      id: '/_authenticated/doc/$id'
-      path: '/doc/$id'
-      fullPath: '/doc/$id'
-      preLoaderRoute: typeof AuthenticatedDocIdRouteImport
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
-  AuthenticatedDocIdRoute: AuthenticatedDocIdRoute,
+  IndexRoute: IndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
