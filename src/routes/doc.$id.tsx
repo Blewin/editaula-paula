@@ -1,7 +1,19 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus } from "lucide-react";
-import { getItem, updateItem, useItems, useRootStatus, type Item } from "@/lib/storage";
+import {
+  getItem,
+  updateItem,
+  useItems,
+  useRootStatus,
+  readDoc,
+  writeDocPage,
+  renameDocTab,
+  setDocTabs,
+  sanitizeTabName,
+  type Item,
+  type DocTab,
+} from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { SheetEditor } from "@/components/SheetEditor";
 import { FolderGate } from "@/components/FolderGate";
@@ -20,37 +32,7 @@ export const Route = createFileRoute("/doc/$id")({
   ),
 });
 
-const SEP = "\u0001___SHEET_BREAK___\u0001";
-const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
-
-type Tab = { name: string; content: string };
 type PageLayout = "grid4" | "grid6" | "verticalAll";
-
-function parseTabs(content: string): Tab[] {
-  if (content.startsWith(TABS_MARKER)) {
-    try {
-      const data = JSON.parse(content.slice(TABS_MARKER.length));
-      if (Array.isArray(data) && data.length > 0) return data as Tab[];
-    } catch {
-      // fall through
-    }
-  }
-  return [{ name: "Tab 1", content }];
-}
-
-function serializeTabs(tabs: Tab[]): string {
-  return TABS_MARKER + JSON.stringify(tabs);
-}
-
-function splitSheets(content: string): string[] {
-  const parts = content.split("\n" + SEP + "\n");
-  while (parts.length < 2) parts.push("");
-  return parts;
-}
-
-function joinSheets(sheets: string[]): string {
-  return sheets.join("\n" + SEP + "\n");
-}
 
 function TabItem({
   name,
@@ -146,6 +128,10 @@ function Grid4Icon({ className }: { className?: string }) {
   );
 }
 
+function persistedKey(tab: string, idx: number): string {
+  return `${tab}\u0000${idx}`;
+}
+
 function DocEditor() {
   const { id } = Route.useParams();
   const { view: fromView, folder: fromFolder } = Route.useSearch();
@@ -155,47 +141,80 @@ function DocEditor() {
   const doc = getItem(id);
 
   const [name, setName] = React.useState(doc?.name ?? "");
-  const initialTabs = React.useMemo(
-    () => (doc && doc.type === "doc" ? parseTabs(doc.content) : [{ name: "Tab 1", content: "" }]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id, doc?.id],
-  );
-  const [tabs, setTabs] = React.useState<Tab[]>(initialTabs);
+  const [tabs, setTabs] = React.useState<DocTab[]>([{ name: "Tab 1", pages: [] }]);
   const [activeTab, setActiveTab] = React.useState(0);
-  const [sheets, setSheets] = React.useState<string[]>(splitSheets(initialTabs[0].content));
+  const [sheets, setSheets] = React.useState<string[]>([""]);
   const [activeSheet, setActiveSheet] = React.useState(0);
   const [view, setView] = React.useState<"document" | "tiles">("document");
   const [pageLayout, setPageLayout] = React.useState<PageLayout>("verticalAll");
+  const [loading, setLoading] = React.useState(true);
   const mainRef = React.useRef<HTMLElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
+  // Snapshot of what's been persisted to disk per (tab, pageIndex).
+  const persistedRef = React.useRef<Map<string, string>>(new Map());
+
   React.useEffect(() => {
-    if (doc) {
-      setName(doc.name);
-      if (doc.type === "doc") {
-        const t = parseTabs(doc.content);
-        setTabs(t);
-        setActiveTab(0);
-        setSheets(splitSheets(t[0].content));
+    if (doc) setName(doc.name);
+  }, [doc?.id, doc?.name]);
+
+  // Load doc data when id changes.
+  React.useEffect(() => {
+    if (status !== "ready" || !doc || doc.type !== "doc") return;
+    let cancelled = false;
+    setLoading(true);
+    void readDoc(id).then((data) => {
+      if (cancelled) return;
+      const loaded = data.tabs.length > 0 ? data.tabs : [{ name: "Tab 1", pages: [] }];
+      setTabs(loaded);
+      setActiveTab(0);
+      const firstPages = loaded[0].pages.length > 0 ? loaded[0].pages : [""];
+      setSheets(firstPages);
+      setActiveSheet(0);
+      const map = new Map<string, string>();
+      for (const t of loaded) {
+        for (let i = 0; i < t.pages.length; i++) {
+          map.set(persistedKey(t.name, i), t.pages[i]);
+        }
       }
-    }
+      persistedRef.current = map;
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, doc?.id]);
+  }, [id, status, doc?.id]);
 
-  const tabsWithCurrent = React.useMemo(() => {
-    const next = [...tabs];
-    if (next[activeTab]) {
-      next[activeTab] = { ...next[activeTab], content: joinSheets(sheets) };
-    }
-    return next;
-  }, [tabs, activeTab, sheets]);
-
+  // Debounced per-page persistence.
   React.useEffect(() => {
+    if (loading) return;
     if (!doc || doc.type !== "doc") return;
     const t = setTimeout(() => {
-      const content = serializeTabs(tabsWithCurrent);
-      if (name !== doc.name || content !== doc.content) {
-        const newId = updateItem(id, { name, content } as Partial<Item>);
+      const currentTabs = tabs.map((tab, i) =>
+        i === activeTab ? { ...tab, pages: sheets } : tab,
+      );
+      for (const tab of currentTabs) {
+        for (let i = 0; i < tab.pages.length; i++) {
+          const key = persistedKey(tab.name, i);
+          const content = tab.pages[i];
+          if (persistedRef.current.get(key) !== content) {
+            persistedRef.current.set(key, content);
+            void writeDocPage(id, tab.name, i, content);
+          }
+        }
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [sheets, tabs, activeTab, id, loading, doc]);
+
+  // Persist doc name change (folder rename) — debounced.
+  React.useEffect(() => {
+    if (loading) return;
+    if (!doc || doc.type !== "doc") return;
+    const t = setTimeout(() => {
+      if (name !== doc.name && name.trim()) {
+        const newId = updateItem(id, { name } as Partial<Item>);
         if (newId !== id) {
           navigate({
             to: "/doc/$id",
@@ -207,38 +226,63 @@ function DocEditor() {
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [name, tabsWithCurrent, id, doc, navigate, fromView, fromFolder]);
+  }, [name, id, doc, loading, navigate, fromView, fromFolder]);
+
+  const commitSheetsIntoTabs = (nextTabs: DocTab[]): DocTab[] => {
+    const copy = [...nextTabs];
+    if (copy[activeTab]) copy[activeTab] = { ...copy[activeTab], pages: sheets };
+    return copy;
+  };
 
   const switchTab = (idx: number) => {
     if (idx === activeTab) return;
-    const committed = [...tabs];
-    if (committed[activeTab]) {
-      committed[activeTab] = { ...committed[activeTab], content: joinSheets(sheets) };
-    }
+    const committed = commitSheetsIntoTabs(tabs);
     setTabs(committed);
     setActiveTab(idx);
-    setSheets(splitSheets(committed[idx]?.content ?? ""));
+    const pages = committed[idx]?.pages ?? [];
+    setSheets(pages.length > 0 ? pages : [""]);
     setActiveSheet(0);
   };
 
   const addTab = () => {
-    const committed = [...tabs];
-    if (committed[activeTab]) {
-      committed[activeTab] = { ...committed[activeTab], content: joinSheets(sheets) };
+    const committed = commitSheetsIntoTabs(tabs);
+    // Find a unique new tab name.
+    const existing = new Set(committed.map((t) => t.name));
+    let n = committed.length + 1;
+    let candidate = `Tab ${n}`;
+    while (existing.has(candidate)) {
+      n += 1;
+      candidate = `Tab ${n}`;
     }
-    const newTab: Tab = { name: `Tab ${committed.length + 1}`, content: "" };
-    const next = [...committed, newTab];
+    const next: DocTab[] = [...committed, { name: candidate, pages: [] }];
     setTabs(next);
     setActiveTab(next.length - 1);
-    setSheets(splitSheets(""));
+    setSheets([""]);
     setActiveSheet(0);
+    void setDocTabs(id, next.map((t) => t.name));
   };
 
   const renameTab = (idx: number, newName: string) => {
-    const next = [...tabs];
-    if (!next[idx]) return;
-    next[idx] = { ...next[idx], name: newName };
+    const cleaned = sanitizeTabName(newName);
+    if (!cleaned) return;
+    const cur = tabs[idx];
+    if (!cur || cleaned === cur.name) return;
+    if (tabs.some((t, i) => i !== idx && t.name === cleaned)) return;
+    const oldName = cur.name;
+    // Update local state immediately.
+    const next = tabs.map((t, i) => (i === idx ? { ...t, name: cleaned } : t));
     setTabs(next);
+    // Remap persisted snapshot keys.
+    const newMap = new Map<string, string>();
+    for (const [k, v] of persistedRef.current) {
+      if (k.startsWith(oldName + "\u0000")) {
+        newMap.set(cleaned + k.slice(oldName.length), v);
+      } else {
+        newMap.set(k, v);
+      }
+    }
+    persistedRef.current = newMap;
+    void renameDocTab(id, oldName, cleaned);
   };
 
   const cyclePageLayout = () => {
@@ -305,6 +349,7 @@ function DocEditor() {
     setSheets((cur) => {
       if ((cur[s] ?? "") === next) return cur;
       const copy = [...cur];
+      while (copy.length <= s) copy.push("");
       copy[s] = next;
       return copy;
     });
@@ -530,7 +575,7 @@ function DocEditor() {
               tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
           >
-            {sheets.slice(0, visiblePageCount).map((_, s) =>
+            {Array.from({ length: visiblePageCount }, (_, s) =>
               view === "document" ? renderSheet(s) : renderTiles(s),
             )}
           </main>

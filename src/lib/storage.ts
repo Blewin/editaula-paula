@@ -6,7 +6,6 @@ export type Item =
       type: "doc";
       name: string;
       parentId: string | null;
-      content: string;
       updatedAt: number;
       starred?: boolean;
     }
@@ -39,9 +38,10 @@ export const FOLDER_COLORS = [
 // ----------------------------------------------------------------------------
 // Item ids:
 //   "d:<relative/path>"  for folders
-//   "f:<relative/path>"  for docs (path OMITS the .md extension)
-// Docs are stored as .md files. Folders are real directories.
-// Sidecar `.editaula.json` at the root stores color, starred, order and views.
+//   "f:<relative/path>"  for docs (docs are folders on disk)
+// Docs are folders on disk containing `<Tab name> - Page <N>.md` files.
+// Sidecar `.editaula.json` at the root stores color, starred, order, views,
+// and the list of doc folders (with tab order/names).
 // ============================================================================
 
 const SIDECAR = ".editaula.json";
@@ -50,10 +50,12 @@ const IDB_STORE = "handles";
 const IDB_KEY_ROOT = "root";
 
 type SidecarMeta = { color?: string; starred?: boolean };
+type DocMeta = { tabs: string[] };
 type SidecarData = {
   meta: Record<string, SidecarMeta>;
   order: Record<string, string[]>; // key: parentId ("" = root) → child ids
   views: { id: string; name: string; itemIds: string[] }[];
+  docs: Record<string, DocMeta>; // key: relative path of doc folder
 };
 
 export type RootStatus =
@@ -69,7 +71,7 @@ let _root: FileSystemDirectoryHandle | null = null;
 let _rootName: string | null = null;
 let _items: Item[] = [];
 let _views: View[] = [];
-let _sidecar: SidecarData = { meta: {}, order: {}, views: [] };
+let _sidecar: SidecarData = { meta: {}, order: {}, views: [], docs: {} };
 let _status: RootStatus = "unknown";
 const _subs = new Set<() => void>();
 
@@ -146,9 +148,10 @@ async function readSidecar(): Promise<SidecarData> {
       meta: data.meta ?? {},
       order: data.order ?? {},
       views: data.views ?? [],
+      docs: data.docs ?? {},
     };
   } catch {
-    return { meta: {}, order: {}, views: [] };
+    return { meta: {}, order: {}, views: [], docs: {} };
   }
 }
 
@@ -178,29 +181,29 @@ async function walk(dir: FileSystemDirectoryHandle, parentPath: string, parentId
     if (name === SIDECAR || name.startsWith(".")) continue;
     if (handle.kind === "directory") {
       const path = parentPath ? `${parentPath}/${name}` : name;
-      const id = idFolder(path);
-      const meta = _sidecar.meta[id] ?? {};
-      out.push({
-        id, type: "folder", name, parentId,
-        color: meta.color ?? FOLDER_COLORS[0],
-        starred: !!meta.starred,
-        updatedAt: Date.now(),
-      });
-      const children = await walk(handle as FileSystemDirectoryHandle, path, id);
-      out.push(...children);
-    } else if (handle.kind === "file" && name.endsWith(".md")) {
-      const base = name.slice(0, -3);
-      const path = parentPath ? `${parentPath}/${base}` : base;
-      const id = idDoc(path);
-      const meta = _sidecar.meta[id] ?? {};
-      const file = await (handle as FileSystemFileHandle).getFile();
-      const content = await file.text();
-      out.push({
-        id, type: "doc", name: base, parentId,
-        content, starred: !!meta.starred,
-        updatedAt: file.lastModified,
-      });
+      if (_sidecar.docs[path]) {
+        // Doc-folder: surface as one doc item, do not recurse.
+        const id = idDoc(path);
+        const meta = _sidecar.meta[id] ?? {};
+        out.push({
+          id, type: "doc", name, parentId,
+          starred: !!meta.starred,
+          updatedAt: Date.now(),
+        });
+      } else {
+        const id = idFolder(path);
+        const meta = _sidecar.meta[id] ?? {};
+        out.push({
+          id, type: "folder", name, parentId,
+          color: meta.color ?? FOLDER_COLORS[0],
+          starred: !!meta.starred,
+          updatedAt: Date.now(),
+        });
+        const children = await walk(handle as FileSystemDirectoryHandle, path, id);
+        out.push(...children);
+      }
     }
+    // Stray .md files at non-doc directories are ignored.
   }
   return out;
 }
@@ -279,7 +282,6 @@ export async function pickFolder(): Promise<void> {
     try { await idbPut(IDB_KEY_ROOT, handle); } catch { /* ignore */ }
     await loadAll();
   } catch (e) {
-    // user cancelled
     if ((e as Error).name !== "AbortError") console.error(e);
   }
 }
@@ -301,7 +303,7 @@ export async function forgetFolder(): Promise<void> {
   _rootName = null;
   _items = [];
   _views = [];
-  _sidecar = { meta: {}, order: {}, views: [] };
+  _sidecar = { meta: {}, order: {}, views: [], docs: {} };
   try { await idbDel(IDB_KEY_ROOT); } catch { /* ignore */ }
   setStatus("no-folder");
 }
@@ -368,20 +370,14 @@ export function createDoc(parentId: string | null, name = "Untitled"): string {
   const finalName = uniqueName(parentId, sanitizeName(name), "doc");
   const path = joinPath(parentId, finalName);
   const id = idDoc(path);
-  const content = `# ${finalName}\n\nStart writing...`;
-  const item: Item = { id, type: "doc", name: finalName, parentId, content, updatedAt: Date.now(), starred: false };
+  const item: Item = { id, type: "doc", name: finalName, parentId, updatedAt: Date.now(), starred: false };
   _items = [..._items, item];
   insertOrder(parentId, id);
+  _sidecar.docs[path] = { tabs: ["Tab 1"] };
   notify();
   void (async () => {
     try {
-      const parts = path.split("/");
-      const fileName = parts.pop()! + ".md";
-      const dir = await resolveDir(parts.join("/"), true);
-      const fh = await dir.getFileHandle(fileName, { create: true });
-      const w = await fh.createWritable();
-      await w.write(content);
-      await w.close();
+      await resolveDir(path, true); // create the doc folder (empty)
       scheduleSidecarWrite();
     } catch (e) { console.error(e); }
   })();
@@ -430,24 +426,6 @@ export function updateItem(id: string, patch: Partial<Item>): string {
   if ("starred" in patch) meta.starred = !!patch.starred;
   _sidecar.meta[currentId] = meta;
   notify();
-
-  if (cur2.type === "doc" && "content" in patch) {
-    const content = (patch as { content?: string }).content;
-    if (typeof content === "string") {
-      const writeId = currentId;
-      void (async () => {
-        try {
-          const parts = pathOf(writeId).split("/");
-          const fileName = parts.pop()! + ".md";
-          const dir = await resolveDir(parts.join("/"));
-          const fh = await dir.getFileHandle(fileName, { create: true });
-          const w = await fh.createWritable();
-          await w.write(content);
-          await w.close();
-        } catch (e) { console.error(e); }
-      })();
-    }
-  }
   scheduleSidecarWrite();
   return currentId;
 }
@@ -466,13 +444,20 @@ function performRename(cur: Item, newName: string): string | null {
   );
   if (siblingConflict) return null;
 
+  const remapPath = (p: string): string => {
+    if (p === oldPath) return newPath;
+    if (p.startsWith(oldPath + "/")) return newPath + p.slice(oldPath.length);
+    return p;
+  };
+
   const remap = (id: string): string => {
     if (id === oldId) return newId;
+    // Folder rename affects all descendant ids (both f: and d:).
+    // Doc rename only affects the exact id (docs have no descendants in _items).
     if (cur.type === "folder") {
       const p = id.slice(2);
       if (p === oldPath || p.startsWith(oldPath + "/")) {
-        const rest = p.slice(oldPath.length); // "" or "/xxx..."
-        return id.slice(0, 2) + newPath + rest;
+        return id.slice(0, 2) + remapPath(p);
       }
     }
     return id;
@@ -489,42 +474,40 @@ function performRename(cur: Item, newName: string): string | null {
   const newMeta: Record<string, SidecarMeta> = {};
   for (const [k, v] of Object.entries(_sidecar.meta)) newMeta[remap(k)] = v;
   _sidecar.meta = newMeta;
+
   const newOrder: Record<string, string[]> = {};
   for (const [k, arr] of Object.entries(_sidecar.order)) {
     const nk = k ? remap(k) : "";
     newOrder[nk] = arr.map(remap);
   }
   _sidecar.order = newOrder;
+
+  // Remap doc paths in sidecar.docs
+  const newDocs: Record<string, DocMeta> = {};
+  for (const [k, v] of Object.entries(_sidecar.docs)) {
+    if (cur.type === "doc") {
+      newDocs[k === oldPath ? newPath : k] = v;
+    } else {
+      newDocs[remapPath(k)] = v;
+    }
+  }
+  _sidecar.docs = newDocs;
+
   _sidecar.views = _sidecar.views.map((v) => ({ ...v, itemIds: v.itemIds.map(remap) }));
   _views = _views.map((v) => ({ ...v, itemIds: v.itemIds.map(remap) }));
   notify();
 
+  // Both docs and folders are directories on disk now.
   void (async () => {
     try {
       const parentDir = await resolveDir(parentPath);
       const oldLeaf = oldPath.split("/").pop()!;
-      if (cur.type === "doc") {
-        const fh = await parentDir.getFileHandle(oldLeaf + ".md");
-        const withMove = fh as FileSystemFileHandle & { move?: (n: string) => Promise<void> };
-        if (typeof withMove.move === "function") {
-          await withMove.move(newName + ".md");
-        } else {
-          const file = await fh.getFile();
-          const text = await file.text();
-          const nfh = await parentDir.getFileHandle(newName + ".md", { create: true });
-          const w = await nfh.createWritable();
-          await w.write(text);
-          await w.close();
-          await parentDir.removeEntry(oldLeaf + ".md");
-        }
+      const dh = await parentDir.getDirectoryHandle(oldLeaf);
+      const withMove = dh as FileSystemDirectoryHandle & { move?: (n: string) => Promise<void> };
+      if (typeof withMove.move === "function") {
+        await withMove.move(newName);
       } else {
-        const dh = await parentDir.getDirectoryHandle(oldLeaf);
-        const withMove = dh as FileSystemDirectoryHandle & { move?: (n: string) => Promise<void> };
-        if (typeof withMove.move === "function") {
-          await withMove.move(newName);
-        } else {
-          console.warn("Folder rename is not supported in this browser");
-        }
+        console.warn("Directory rename is not supported in this browser");
       }
       scheduleSidecarWrite();
     } catch (e) { console.error(e); }
@@ -548,6 +531,20 @@ export function deleteItem(id: string) {
   _items = _items.filter((i) => !toDelete.has(i.id));
   removeOrder(id, item.parentId);
   for (const did of toDelete) delete _sidecar.meta[did];
+
+  // Drop any docs whose path falls under a deleted id
+  const deletedPaths = new Set<string>();
+  for (const did of toDelete) deletedPaths.add(pathOf(did));
+  const newDocs: Record<string, DocMeta> = {};
+  for (const [k, v] of Object.entries(_sidecar.docs)) {
+    let keep = true;
+    for (const dp of deletedPaths) {
+      if (k === dp || k.startsWith(dp + "/")) { keep = false; break; }
+    }
+    if (keep) newDocs[k] = v;
+  }
+  _sidecar.docs = newDocs;
+
   _views = _views.map((v) => ({ ...v, itemIds: v.itemIds.filter((x) => !toDelete.has(x)) }));
   _sidecar.views = _sidecar.views.map((v) => ({ ...v, itemIds: v.itemIds.filter((x) => !toDelete.has(x)) }));
   notify();
@@ -556,8 +553,7 @@ export function deleteItem(id: string) {
       const parentPath = item.parentId ? pathOf(item.parentId) : "";
       const parentDir = await resolveDir(parentPath);
       const leaf = pathOf(id).split("/").pop()!;
-      const entry = item.type === "doc" ? leaf + ".md" : leaf;
-      await parentDir.removeEntry(entry, { recursive: item.type === "folder" });
+      await parentDir.removeEntry(leaf, { recursive: true });
       scheduleSidecarWrite();
     } catch (e) { console.error(e); }
   })();
@@ -579,6 +575,156 @@ export function reorderItem(activeId: string, overId: string, position: "before"
   _items = sortItemsByOrder(_items);
   notify();
   scheduleSidecarWrite();
+}
+
+// ---------- Doc contents (tabs + pages) ----------
+export type DocTab = { name: string; pages: string[] };
+export type DocData = { tabs: DocTab[] };
+
+export function getDocTabs(docId: string): string[] {
+  const path = pathOf(docId);
+  return _sidecar.docs[path]?.tabs ?? ["Tab 1"];
+}
+
+export function sanitizeTabName(name: string): string {
+  return sanitizeName(name);
+}
+
+function pageFileName(tab: string, pageIndex: number): string {
+  return `${tab} - Page ${pageIndex + 1}.md`;
+}
+
+export async function readDoc(docId: string): Promise<DocData> {
+  const path = pathOf(docId);
+  const meta = _sidecar.docs[path] ?? { tabs: ["Tab 1"] };
+  const tabs = meta.tabs.length > 0 ? meta.tabs : ["Tab 1"];
+  // Match longest tab names first to avoid ambiguity.
+  const sortedTabs = [...tabs].sort((a, b) => b.length - a.length);
+
+  const dir = await resolveDir(path);
+  const pagesByTab: Record<string, Record<number, string>> = {};
+  const maxByTab: Record<string, number> = {};
+  for (const t of tabs) { pagesByTab[t] = {}; maxByTab[t] = 0; }
+
+  const entries = (dir as unknown as { entries: () => DirEntries }).entries();
+  for await (const [name, handle] of entries) {
+    if (handle.kind !== "file" || !name.endsWith(".md")) continue;
+    for (const t of sortedTabs) {
+      const prefix = `${t} - Page `;
+      if (name.startsWith(prefix)) {
+        const numStr = name.slice(prefix.length, -3);
+        if (/^\d+$/.test(numStr)) {
+          const n = parseInt(numStr, 10);
+          if (n >= 1) {
+            const file = await (handle as FileSystemFileHandle).getFile();
+            pagesByTab[t][n - 1] = await file.text();
+            if (n > maxByTab[t]) maxByTab[t] = n;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  return {
+    tabs: tabs.map((t) => {
+      const max = maxByTab[t];
+      const pages: string[] = [];
+      for (let i = 0; i < max; i++) pages.push(pagesByTab[t][i] ?? "");
+      return { name: t, pages };
+    }),
+  };
+}
+
+export async function writeDocPage(
+  docId: string,
+  tabName: string,
+  pageIndex: number,
+  content: string,
+): Promise<void> {
+  const path = pathOf(docId);
+  const dir = await resolveDir(path, true);
+  const fileName = pageFileName(tabName, pageIndex);
+  if (content.trim() === "") {
+    try { await dir.removeEntry(fileName); } catch { /* not present */ }
+  } else {
+    const fh = await dir.getFileHandle(fileName, { create: true });
+    const w = await fh.createWritable();
+    await w.write(content);
+    await w.close();
+  }
+}
+
+export async function renameDocTab(docId: string, oldName: string, newName: string): Promise<boolean> {
+  const clean = sanitizeName(newName);
+  if (!clean || clean === oldName) return false;
+  const path = pathOf(docId);
+  const meta = _sidecar.docs[path];
+  if (!meta) return false;
+  if (meta.tabs.includes(clean)) return false;
+
+  const dir = await resolveDir(path);
+  const prefix = `${oldName} - Page `;
+  const toRename: string[] = [];
+  const entries = (dir as unknown as { entries: () => DirEntries }).entries();
+  for await (const [name, handle] of entries) {
+    if (handle.kind === "file" && name.startsWith(prefix) && name.endsWith(".md")) {
+      toRename.push(name);
+    }
+  }
+  for (const oldFile of toRename) {
+    const suffix = oldFile.slice(oldName.length); // " - Page N.md"
+    const newFile = clean + suffix;
+    try {
+      const fh = await dir.getFileHandle(oldFile);
+      const withMove = fh as FileSystemFileHandle & { move?: (n: string) => Promise<void> };
+      if (typeof withMove.move === "function") {
+        await withMove.move(newFile);
+      } else {
+        const file = await fh.getFile();
+        const text = await file.text();
+        const nfh = await dir.getFileHandle(newFile, { create: true });
+        const w = await nfh.createWritable();
+        await w.write(text);
+        await w.close();
+        await dir.removeEntry(oldFile);
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  meta.tabs = meta.tabs.map((t) => (t === oldName ? clean : t));
+  _sidecar.docs[path] = meta;
+  scheduleSidecarWrite();
+  notify();
+  return true;
+}
+
+export async function setDocTabs(docId: string, tabs: string[]): Promise<void> {
+  const path = pathOf(docId);
+  const cur = _sidecar.docs[path] ?? { tabs: [] };
+  const cleaned = tabs.map(sanitizeName);
+  const removed = cur.tabs.filter((t) => !cleaned.includes(t));
+  _sidecar.docs[path] = { tabs: cleaned };
+  scheduleSidecarWrite();
+  notify();
+  if (removed.length) {
+    try {
+      const dir = await resolveDir(path);
+      for (const t of removed) {
+        const prefix = `${t} - Page `;
+        const toDelete: string[] = [];
+        const entries = (dir as unknown as { entries: () => DirEntries }).entries();
+        for await (const [name, handle] of entries) {
+          if (handle.kind === "file" && name.startsWith(prefix) && name.endsWith(".md")) {
+            toDelete.push(name);
+          }
+        }
+        for (const f of toDelete) {
+          try { await dir.removeEntry(f); } catch { /* ignore */ }
+        }
+      }
+    } catch (e) { console.error(e); }
+  }
 }
 
 // ---------- Views ----------
