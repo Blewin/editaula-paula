@@ -477,13 +477,21 @@ function DocEditor() {
   };
   const joinParagraphs = (ps: string[]): string => ps.join("\n");
 
-  const reorderSheetParagraphs = (s: number, from: number, to: number) => {
-    const ps = splitParagraphs(sheets[s] ?? "");
-    if (from === to || from < 0 || from >= ps.length) return;
-    const [moved] = ps.splice(from, 1);
-    ps.splice(Math.max(0, Math.min(to, ps.length)), 0, moved);
+  const moveParagraph = (fromSheet: number, fromIdx: number, toSheet: number, toIdx: number) => {
+    if (fromSheet === toSheet && fromIdx === toIdx) return;
     const next = [...sheets];
-    next[s] = joinParagraphs(ps);
+    const srcPs = splitParagraphs(next[fromSheet] ?? "");
+    if (fromIdx < 0 || fromIdx >= srcPs.length) return;
+    const [moved] = srcPs.splice(fromIdx, 1);
+    if (fromSheet === toSheet) {
+      srcPs.splice(Math.max(0, Math.min(toIdx, srcPs.length)), 0, moved);
+      next[fromSheet] = joinParagraphs(srcPs);
+    } else {
+      const dstPs = splitParagraphs(next[toSheet] ?? "");
+      dstPs.splice(Math.max(0, Math.min(toIdx, dstPs.length)), 0, moved);
+      next[fromSheet] = joinParagraphs(srcPs);
+      next[toSheet] = joinParagraphs(dstPs);
+    }
     setSheets(next);
   };
 
@@ -494,6 +502,24 @@ function DocEditor() {
       <div
         key={s}
         className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const raw = e.dataTransfer.getData("text/plain");
+          if (!raw) return;
+          try {
+            const { sheet: fromSheet, index: fromIdx } = JSON.parse(raw);
+            if (typeof fromSheet === "number" && typeof fromIdx === "number") {
+              const dstLen = splitParagraphs(sheets[s] ?? "").length;
+              moveParagraph(fromSheet, fromIdx, s, dstLen);
+            }
+          } catch {
+            // ignore
+          }
+        }}
       >
         {paragraphs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No paragraphs yet.</p>
@@ -505,16 +531,26 @@ function DocEditor() {
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/plain", String(i));
+                  e.dataTransfer.setData("text/plain", JSON.stringify({ sheet: s, index: i }));
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   e.dataTransfer.dropEffect = "move";
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  const from = Number(e.dataTransfer.getData("text/plain"));
-                  if (!Number.isNaN(from)) reorderSheetParagraphs(s, from, i);
+                  e.stopPropagation();
+                  const raw = e.dataTransfer.getData("text/plain");
+                  if (!raw) return;
+                  try {
+                    const { sheet: fromSheet, index: fromIdx } = JSON.parse(raw);
+                    if (typeof fromSheet === "number" && typeof fromIdx === "number") {
+                      moveParagraph(fromSheet, fromIdx, s, i);
+                    }
+                  } catch {
+                    // ignore
+                  }
                 }}
                 className="cursor-move w-full rounded-md border bg-background px-4 py-2 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words"
               >
