@@ -694,13 +694,13 @@ function DocEditor() {
             <aside className="w-44 shrink-0 pt-16">
               <Button
                 variant="outline"
-                className="w-full justify-start gap-2 mb-2 text-sm py-2"
+                className="w-full justify-start gap-2 mb-1.5 text-sm py-2"
                 onClick={addTab}
               >
                 <Plus className="h-4 w-4" />
                 New tab
               </Button>
-              <nav className="flex flex-col gap-2">
+              <nav className="flex flex-col gap-1.5">
 
                 {tabs.map((t, i) => (
                   <TabItem
