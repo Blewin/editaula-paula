@@ -335,8 +335,8 @@ const editorTheme = EditorView.theme({
     verticalAlign: "middle",
     margin: "0.5em 0",
   },
-  "&.cm-editor .cm-selectionBackground, .cm-selectionLayer .cm-selectionBackground, & ::selection": {
-    backgroundColor: "color-mix(in oklab, var(--text-accent, hsl(var(--primary))) 30%, transparent) !important",
+  "& .cm-selectionLayer .cm-selectionBackground, &.cm-focused .cm-selectionLayer .cm-selectionBackground, & ::selection": {
+    background: "color-mix(in oklab, var(--text-accent, hsl(var(--primary))) 35%, transparent) !important",
   },
 });
 
