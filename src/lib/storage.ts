@@ -407,30 +407,37 @@ export function createFolder(parentId: string | null, name = "New folder"): stri
   return id;
 }
 
-export function updateItem(id: string, patch: Partial<Item>) {
+export function updateItem(id: string, patch: Partial<Item>): string {
   const idx = _items.findIndex((i) => i.id === id);
-  if (idx === -1) return;
+  if (idx === -1) return id;
   const cur = _items[idx];
   const nextName = "name" in patch && patch.name ? sanitizeName(patch.name) : cur.name;
+
+  let currentId = id;
   if (nextName !== cur.name) {
-    performRename(cur, nextName);
-    return;
+    const newId = performRename(cur, nextName);
+    if (newId) currentId = newId;
   }
 
-  const next = { ...cur, ...patch, updatedAt: Date.now() } as Item;
-  _items = _items.map((i, k) => (k === idx ? next : i));
-  const meta: SidecarMeta = { ..._sidecar.meta[id] };
+  const idx2 = _items.findIndex((i) => i.id === currentId);
+  if (idx2 === -1) return currentId;
+  const cur2 = _items[idx2];
+
+  const next = { ...cur2, ...patch, name: nextName, updatedAt: Date.now() } as Item;
+  _items = _items.map((i, k) => (k === idx2 ? next : i));
+  const meta: SidecarMeta = { ..._sidecar.meta[currentId] };
   if ("color" in patch && (patch as { color?: string }).color !== undefined) meta.color = (patch as { color?: string }).color!;
   if ("starred" in patch) meta.starred = !!patch.starred;
-  _sidecar.meta[id] = meta;
+  _sidecar.meta[currentId] = meta;
   notify();
 
-  if (cur.type === "doc" && "content" in patch) {
+  if (cur2.type === "doc" && "content" in patch) {
     const content = (patch as { content?: string }).content;
     if (typeof content === "string") {
+      const writeId = currentId;
       void (async () => {
         try {
-          const parts = pathOf(id).split("/");
+          const parts = pathOf(writeId).split("/");
           const fileName = parts.pop()! + ".md";
           const dir = await resolveDir(parts.join("/"));
           const fh = await dir.getFileHandle(fileName, { create: true });
@@ -442,21 +449,22 @@ export function updateItem(id: string, patch: Partial<Item>) {
     }
   }
   scheduleSidecarWrite();
+  return currentId;
 }
 
-function performRename(cur: Item, newName: string) {
+function performRename(cur: Item, newName: string): string | null {
   const oldId = cur.id;
   const oldPath = pathOf(oldId);
   const parentPath = cur.parentId ? pathOf(cur.parentId) : "";
   const newPath = parentPath ? `${parentPath}/${newName}` : newName;
   const newId = cur.type === "doc" ? idDoc(newPath) : idFolder(newPath);
-  if (newId === oldId) return;
+  if (newId === oldId) return null;
 
   // Guard against overwriting sibling with same-name/type
   const siblingConflict = _items.some(
     (i) => i.parentId === cur.parentId && i.type === cur.type && i.name === newName,
   );
-  if (siblingConflict) return;
+  if (siblingConflict) return null;
 
   const remap = (id: string): string => {
     if (id === oldId) return newId;
@@ -521,6 +529,7 @@ function performRename(cur: Item, newName: string) {
       scheduleSidecarWrite();
     } catch (e) { console.error(e); }
   })();
+  return newId;
 }
 
 export function deleteItem(id: string) {
