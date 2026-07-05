@@ -377,7 +377,7 @@ export function createMarkdownEditor(parent: HTMLElement, opts: MarkdownEditorOp
     doc: opts.value,
     extensions: [
       history(),
-      drawSelection(),
+      
       dropCursor(),
       markdown({ base: markdownLanguage, addKeymap: true }),
       livePreviewPlugin,
