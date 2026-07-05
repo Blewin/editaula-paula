@@ -382,10 +382,24 @@ function DocEditor() {
       writeSheet(s, next);
     };
 
-    const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       const el = e.currentTarget;
-      const pos = el.selectionStart ?? 0;
-      const val = el.value;
+      const val = el.textContent ?? "";
+      const pos = getCaretInEl(el);
+
+      // Select all across current tab's pages
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a" && !e.shiftKey && !e.altKey) {
+        if (mainRef.current) {
+          e.preventDefault();
+          (document.activeElement as HTMLElement | null)?.blur();
+          const range = document.createRange();
+          range.selectNodeContents(mainRef.current);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+        return;
+      }
 
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -410,7 +424,6 @@ function DocEditor() {
           setCaretPos(Math.min(pos, lines[safeActive - 1].length));
           setActive({ sheet: s, line: safeActive - 1 });
         } else if (s > 0) {
-          // jump to last line of previous sheet
           e.preventDefault();
           const prev = sheetLines(s - 1);
           setCaretPos(Math.min(pos, prev[prev.length - 1].length));
@@ -475,26 +488,36 @@ function DocEditor() {
       <div
         key={s}
         className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) focusLine(s, lines.length - 1);
+        onMouseDown={(e) => {
+          // Clear any prior cross-line selection when starting a new click
+          const sel = window.getSelection();
+          if (sel && !sel.isCollapsed) sel.removeAllRanges();
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+            focusLine(s, lines.length - 1);
+          }
         }}
       >
         {lines.map((line, i) =>
           isActiveSheet && i === safeActive ? (
-            <textarea
+            <div
               key={i}
               ref={inputRef}
-              value={line}
-              onChange={(e) => onLineChange(e.target.value)}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
               onKeyDown={onKeyDown}
-              rows={1}
-              className="block w-full resize-none bg-transparent outline-none my-0 overflow-hidden"
+              className="block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem]"
               spellCheck={false}
             />
           ) : (
             <div
               key={i}
-              onClick={() => focusLine(s, i)}
+              onClick={() => {
+                const sel = window.getSelection();
+                if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
+                focusLine(s, i);
+              }}
               className="my-0 cursor-text min-h-[1.25rem]"
               dangerouslySetInnerHTML={{ __html: renderLine(line) }}
             />
@@ -507,6 +530,7 @@ function DocEditor() {
 
     );
   };
+
 
   const splitParagraphs = (s: string): string[] => {
     return s.split("\n").filter((p) => p.trim().length > 0);
