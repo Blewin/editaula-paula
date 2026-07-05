@@ -8,6 +8,7 @@ export type Item =
       parentId: string | null;
       updatedAt: number;
       starred?: boolean;
+      preview?: string;
     }
   | {
       id: string;
@@ -174,6 +175,32 @@ async function writeSidecar() {
 // ---------- Walk the tree ----------
 type DirEntries = AsyncIterable<[string, FileSystemHandle]>;
 
+async function readDocPreview(
+  dir: FileSystemDirectoryHandle,
+  tabs: string[],
+): Promise<string> {
+  // Try `<firstTab> - Page 1.md`, then any `<tab> - Page N.md` we find.
+  const candidates: string[] = [];
+  const first = tabs[0];
+  if (first) candidates.push(`${first} - Page 1.md`);
+  for (const t of tabs) {
+    for (let i = 1; i <= 3; i++) {
+      const name = `${t} - Page ${i}.md`;
+      if (!candidates.includes(name)) candidates.push(name);
+    }
+  }
+  for (const filename of candidates) {
+    try {
+      const fh = await dir.getFileHandle(filename);
+      const file = await fh.getFile();
+      const text = await file.text();
+      const trimmed = text.trim();
+      if (trimmed.length > 0) return trimmed.slice(0, 280);
+    } catch { /* not present */ }
+  }
+  return "";
+}
+
 async function walk(dir: FileSystemDirectoryHandle, parentPath: string, parentId: string | null): Promise<Item[]> {
   const out: Item[] = [];
   const entries = (dir as unknown as { entries: () => DirEntries }).entries();
@@ -185,10 +212,12 @@ async function walk(dir: FileSystemDirectoryHandle, parentPath: string, parentId
         // Doc-folder: surface as one doc item, do not recurse.
         const id = idDoc(path);
         const meta = _sidecar.meta[id] ?? {};
+        const preview = await readDocPreview(handle as FileSystemDirectoryHandle, _sidecar.docs[path].tabs);
         out.push({
           id, type: "doc", name, parentId,
           starred: !!meta.starred,
           updatedAt: Date.now(),
+          preview,
         });
       } else {
         const id = idFolder(path);
@@ -692,6 +721,17 @@ export async function writeDocPage(
     const w = await fh.createWritable();
     await w.write(content);
     await w.close();
+  }
+  // Refresh in-memory preview for this doc so home tiles stay current.
+  const meta = _sidecar.docs[path];
+  if (meta) {
+    const preview = await readDocPreview(dir, meta.tabs);
+    const idx = _items.findIndex((i) => i.id === docId);
+    if (idx !== -1 && _items[idx].type === "doc") {
+      const next = { ..._items[idx], preview } as Item;
+      _items = _items.map((i, k) => (k === idx ? next : i));
+      notify();
+    }
   }
 }
 
