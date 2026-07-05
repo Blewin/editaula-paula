@@ -4,7 +4,7 @@ import {
   ViewPlugin,
   WidgetType,
   keymap,
-  drawSelection,
+  
   dropCursor,
   type DecorationSet,
   type ViewUpdate,
@@ -286,11 +286,8 @@ const editorTheme = EditorView.theme({
     borderLeftColor: "var(--text-normal, hsl(var(--foreground)))",
     borderLeftWidth: "2px",
   },
-  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-    background: "rgba(100, 149, 237, 0.30)",
-  },
   ".cm-content ::selection, .cm-content::selection": {
-    background: "transparent",
+    backgroundColor: "rgba(100, 149, 237, 0.30)",
   },
   ".cm-activeLine, .cm-activeLineGutter": {
     backgroundColor: "transparent",
