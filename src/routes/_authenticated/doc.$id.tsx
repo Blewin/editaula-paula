@@ -275,16 +275,51 @@ function DocEditor() {
     return "rounded-none";
   };
 
-  // Focus active line input and place caret
+  // Caret helpers for contentEditable line
+  const setCaretInEl = (el: HTMLElement, offset: number) => {
+    const sel = window.getSelection();
+    if (!sel) return;
+    const range = document.createRange();
+    const first = el.firstChild;
+    if (first && first.nodeType === 3) {
+      const len = first.textContent?.length ?? 0;
+      range.setStart(first, Math.max(0, Math.min(offset, len)));
+    } else {
+      range.setStart(el, 0);
+    }
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  const getCaretInEl = (el: HTMLElement): number => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return (el.textContent ?? "").length;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.endContainer)) return (el.textContent ?? "").length;
+    const pre = range.cloneRange();
+    pre.selectNodeContents(el);
+    pre.setEnd(range.endContainer, range.endOffset);
+    return pre.toString().length;
+  };
+
+  // Sync active line DOM content with model
   React.useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
-    el.focus();
-    el.style.height = "auto";
-    el.style.height = el.scrollHeight + "px";
+    const sheetContent = sheets[active.sheet] ?? "";
+    const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
+    const target = linesArr[active.line] ?? "";
+    if (el.textContent !== target) el.textContent = target;
+  }, [active, sheets]);
+
+  // Focus active line and place caret
+  React.useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    if (document.activeElement !== el) el.focus();
     if (caretPos !== null) {
-      const pos = Math.min(caretPos, el.value.length);
-      el.setSelectionRange(pos, pos);
+      setCaretInEl(el, caretPos);
       setCaretPos(null);
     }
   }, [active, caretPos]);
