@@ -700,7 +700,7 @@ function DocEditor() {
                 <Plus className="h-4 w-4" />
                 New tab
               </Button>
-              <nav className="flex flex-col gap-1">
+              <nav className="flex flex-col gap-3">
                 {tabs.map((t, i) => (
                   <TabItem
                     key={i}
