@@ -1,18 +1,23 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus } from "lucide-react";
-import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
+import { getItem, updateItem, useItems, useRootStatus, type Item } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { SheetEditor } from "@/components/SheetEditor";
+import { FolderGate } from "@/components/FolderGate";
 
 type DocSearch = { view?: string; folder?: string };
 
-export const Route = createFileRoute("/_authenticated/doc/$id")({
+export const Route = createFileRoute("/doc/$id")({
   validateSearch: (s: Record<string, unknown>): DocSearch => ({
     view: typeof s.view === "string" ? s.view : undefined,
     folder: typeof s.folder === "string" ? s.folder : undefined,
   }),
-  component: DocEditor,
+  component: () => (
+    <FolderGate>
+      <DocEditor />
+    </FolderGate>
+  ),
 });
 
 const SEP = "\u0001___SHEET_BREAK___\u0001";
@@ -145,6 +150,7 @@ function DocEditor() {
   const { id } = Route.useParams();
   const { view: fromView, folder: fromFolder } = Route.useSearch();
   const navigate = useNavigate();
+  const status = useRootStatus();
   useItems(); // subscribe for reactivity
   const doc = getItem(id);
 
@@ -152,7 +158,7 @@ function DocEditor() {
   const initialTabs = React.useMemo(
     () => (doc && doc.type === "doc" ? parseTabs(doc.content) : [{ name: "Tab 1", content: "" }]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id],
+    [id, doc?.id],
   );
   const [tabs, setTabs] = React.useState<Tab[]>(initialTabs);
   const [activeTab, setActiveTab] = React.useState(0);
@@ -174,7 +180,7 @@ function DocEditor() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, doc?.id]);
 
   const tabsWithCurrent = React.useMemo(() => {
     const next = [...tabs];
@@ -268,6 +274,14 @@ function DocEditor() {
     return "rounded-none";
   };
 
+  if (status !== "ready") {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
   if (!doc || doc.type !== "doc") {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -319,8 +333,6 @@ function DocEditor() {
       </div>
     );
   };
-
-
 
   const splitParagraphs = (s: string): string[] => {
     return s.split("\n").filter((p) => p.trim().length > 0);
@@ -491,7 +503,6 @@ function DocEditor() {
                 New tab
               </Button>
               <nav className="flex flex-col gap-1.5">
-
                 {tabs.map((t, i) => (
                   <TabItem
                     key={i}
@@ -517,7 +528,6 @@ function DocEditor() {
           </main>
         </div>
       </div>
-
     </div>
   );
 }

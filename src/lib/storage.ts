@@ -1,5 +1,4 @@
 import * as React from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 export type Item =
   | {
@@ -35,171 +34,299 @@ export const FOLDER_COLORS = [
   "#f87171", "#b91c1c", "#ec4899", "#f472b6", "#14b8a6",
 ];
 
-// ---------- In-memory cache + subscribers ----------
+// ============================================================================
+// File System Access API storage
+// ----------------------------------------------------------------------------
+// Item ids:
+//   "d:<relative/path>"  for folders
+//   "f:<relative/path>"  for docs (path OMITS the .md extension)
+// Docs are stored as .md files. Folders are real directories.
+// Sidecar `.editaula.json` at the root stores color, starred, order and views.
+// ============================================================================
 
-type ItemRow = {
-  id: string;
-  user_id: string;
-  type: "doc" | "folder";
-  name: string;
-  parent_id: string | null;
-  content: string;
-  color: string;
-  starred: boolean;
-  position: number;
-  updated_at: string;
+const SIDECAR = ".editaula.json";
+const IDB_NAME = "editaula";
+const IDB_STORE = "handles";
+const IDB_KEY_ROOT = "root";
+
+type SidecarMeta = { color?: string; starred?: boolean };
+type SidecarData = {
+  meta: Record<string, SidecarMeta>;
+  order: Record<string, string[]>; // key: parentId ("" = root) → child ids
+  views: { id: string; name: string; itemIds: string[] }[];
 };
 
-type ViewRow = {
-  id: string;
-  user_id: string;
-  name: string;
-  position: number;
-};
+export type RootStatus =
+  | "unknown"
+  | "no-support"
+  | "no-folder"
+  | "needs-permission"
+  | "loading"
+  | "ready"
+  | "error";
 
-type ViewItemRow = {
-  view_id: string;
-  item_id: string;
-  user_id: string;
-  position: number;
-};
-
+let _root: FileSystemDirectoryHandle | null = null;
+let _rootName: string | null = null;
 let _items: Item[] = [];
 let _views: View[] = [];
-let _currentUserId: string | null = null;
-let _loaded = false;
-let _loadingPromise: Promise<void> | null = null;
+let _sidecar: SidecarData = { meta: {}, order: {}, views: [] };
+let _status: RootStatus = "unknown";
 const _subs = new Set<() => void>();
 
-function notify() {
-  for (const s of _subs) s();
+function notify() { for (const s of _subs) s(); }
+function setStatus(s: RootStatus) { _status = s; notify(); }
+
+// ---------- IndexedDB (persist handle across reloads) ----------
+function idbOpen(): Promise<IDBDatabase> {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbGet<T>(key: string): Promise<T | undefined> {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => res(req.result as T | undefined);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbPut(key: string, value: unknown): Promise<void> {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbDel(key: string): Promise<void> {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).delete(key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
 }
 
-function rowToItem(r: ItemRow): Item {
-  const base = {
-    id: r.id,
-    name: r.name,
-    parentId: r.parent_id,
-    starred: r.starred,
-    updatedAt: new Date(r.updated_at).getTime(),
-  };
-  if (r.type === "doc") {
-    return { ...base, type: "doc", content: r.content } as Item;
+// ---------- Path/id helpers ----------
+function idFolder(path: string): string { return "d:" + path; }
+function idDoc(path: string): string { return "f:" + path; }
+function pathOf(id: string): string { return id.slice(2); }
+
+function joinPath(parent: string | null, name: string): string {
+  const parentPath = parent ? pathOf(parent) : "";
+  return parentPath ? `${parentPath}/${name}` : name;
+}
+
+function sanitizeName(name: string): string {
+  return name.replace(/[/\\:*?"<>|\r\n]/g, "_").trim() || "Untitled";
+}
+
+async function resolveDir(path: string, create = false): Promise<FileSystemDirectoryHandle> {
+  let cur = _root!;
+  if (!path) return cur;
+  for (const seg of path.split("/")) {
+    cur = await cur.getDirectoryHandle(seg, { create });
   }
-  return { ...base, type: "folder", color: r.color } as Item;
+  return cur;
+}
+
+// ---------- Sidecar load/save ----------
+async function readSidecar(): Promise<SidecarData> {
+  try {
+    const fh = await _root!.getFileHandle(SIDECAR);
+    const f = await fh.getFile();
+    const data = JSON.parse(await f.text()) as Partial<SidecarData>;
+    return {
+      meta: data.meta ?? {},
+      order: data.order ?? {},
+      views: data.views ?? [],
+    };
+  } catch {
+    return { meta: {}, order: {}, views: [] };
+  }
+}
+
+let _sidecarTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleSidecarWrite() {
+  if (!_root) return;
+  if (_sidecarTimer) clearTimeout(_sidecarTimer);
+  _sidecarTimer = setTimeout(() => { void writeSidecar(); }, 300);
+}
+async function writeSidecar() {
+  if (!_root) return;
+  try {
+    const fh = await _root.getFileHandle(SIDECAR, { create: true });
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify(_sidecar, null, 2));
+    await w.close();
+  } catch (e) { console.error("sidecar write", e); }
+}
+
+// ---------- Walk the tree ----------
+type DirEntries = AsyncIterable<[string, FileSystemHandle]>;
+
+async function walk(dir: FileSystemDirectoryHandle, parentPath: string, parentId: string | null): Promise<Item[]> {
+  const out: Item[] = [];
+  const entries = (dir as unknown as { entries: () => DirEntries }).entries();
+  for await (const [name, handle] of entries) {
+    if (name === SIDECAR || name.startsWith(".")) continue;
+    if (handle.kind === "directory") {
+      const path = parentPath ? `${parentPath}/${name}` : name;
+      const id = idFolder(path);
+      const meta = _sidecar.meta[id] ?? {};
+      out.push({
+        id, type: "folder", name, parentId,
+        color: meta.color ?? FOLDER_COLORS[0],
+        starred: !!meta.starred,
+        updatedAt: Date.now(),
+      });
+      const children = await walk(handle as FileSystemDirectoryHandle, path, id);
+      out.push(...children);
+    } else if (handle.kind === "file" && name.endsWith(".md")) {
+      const base = name.slice(0, -3);
+      const path = parentPath ? `${parentPath}/${base}` : base;
+      const id = idDoc(path);
+      const meta = _sidecar.meta[id] ?? {};
+      const file = await (handle as FileSystemFileHandle).getFile();
+      const content = await file.text();
+      out.push({
+        id, type: "doc", name: base, parentId,
+        content, starred: !!meta.starred,
+        updatedAt: file.lastModified,
+      });
+    }
+  }
+  return out;
+}
+
+function sortItemsByOrder(items: Item[]): Item[] {
+  const byParent = new Map<string, Item[]>();
+  for (const it of items) {
+    const k = it.parentId ?? "";
+    const arr = byParent.get(k) ?? [];
+    arr.push(it);
+    byParent.set(k, arr);
+  }
+  const result: Item[] = [];
+  for (const [parentKey, siblings] of byParent) {
+    const order = _sidecar.order[parentKey] ?? [];
+    const idx = new Map(order.map((id, i) => [id, i]));
+    siblings.sort((a, b) => {
+      const ai = idx.has(a.id) ? idx.get(a.id)! : Number.MAX_SAFE_INTEGER;
+      const bi = idx.has(b.id) ? idx.get(b.id)! : Number.MAX_SAFE_INTEGER;
+      if (ai !== bi) return ai - bi;
+      return a.name.localeCompare(b.name);
+    });
+    result.push(...siblings);
+  }
+  return result;
 }
 
 async function loadAll() {
-  if (!_currentUserId) {
-    _items = [];
-    _views = [];
-    _loaded = true;
-    notify();
-    return;
+  if (!_root) return;
+  setStatus("loading");
+  try {
+    _sidecar = await readSidecar();
+    const items = await walk(_root, "", null);
+    _items = sortItemsByOrder(items);
+    _views = _sidecar.views.map((v) => ({ id: v.id, name: v.name, itemIds: [...v.itemIds] }));
+    setStatus("ready");
+  } catch (e) {
+    console.error(e);
+    setStatus("error");
   }
-  const [itemsRes, viewsRes, viewItemsRes] = await Promise.all([
-    supabase.from("items").select("*").order("position", { ascending: true }),
-    supabase.from("views").select("*").order("position", { ascending: true }),
-    supabase.from("view_items").select("*").order("position", { ascending: true }),
-  ]);
-  if (itemsRes.error) console.error(itemsRes.error);
-  if (viewsRes.error) console.error(viewsRes.error);
-  if (viewItemsRes.error) console.error(viewItemsRes.error);
-
-  _items = (itemsRes.data ?? []).map((r) => rowToItem(r as ItemRow));
-  const viewItemsByView = new Map<string, string[]>();
-  for (const vi of (viewItemsRes.data ?? []) as ViewItemRow[]) {
-    const arr = viewItemsByView.get(vi.view_id) ?? [];
-    arr.push(vi.item_id);
-    viewItemsByView.set(vi.view_id, arr);
-  }
-  _views = ((viewsRes.data ?? []) as ViewRow[]).map((v) => ({
-    id: v.id,
-    name: v.name,
-    itemIds: viewItemsByView.get(v.id) ?? [],
-  }));
-  _loaded = true;
-  notify();
 }
 
-function ensureLoaded() {
-  if (_loaded || _loadingPromise) return;
-  _loadingPromise = loadAll().finally(() => {
-    _loadingPromise = null;
-  });
-}
+// ---------- Root selection ----------
+type WithPermissions = FileSystemDirectoryHandle & {
+  queryPermission: (opts: { mode: "read" | "readwrite" }) => Promise<PermissionState>;
+  requestPermission: (opts: { mode: "read" | "readwrite" }) => Promise<PermissionState>;
+};
 
-// Auth-state sync + realtime (browser only)
-let _realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
-
-function subscribeRealtime() {
-  if (_realtimeChannel || !_currentUserId) return;
-  const uid = _currentUserId;
-  _realtimeChannel = supabase
-    .channel(`store-${uid}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "items", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
-    .on("postgres_changes", { event: "*", schema: "public", table: "views", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
-    .on("postgres_changes", { event: "*", schema: "public", table: "view_items", filter: `user_id=eq.${uid}` }, () => { void loadAll(); })
-    .subscribe();
-}
-
-function unsubscribeRealtime() {
-  if (_realtimeChannel) {
-    void supabase.removeChannel(_realtimeChannel);
-    _realtimeChannel = null;
+async function tryRestore() {
+  if (typeof window === "undefined") return;
+  if (!("showDirectoryPicker" in window)) { setStatus("no-support"); return; }
+  let saved: FileSystemDirectoryHandle | undefined;
+  try { saved = await idbGet<FileSystemDirectoryHandle>(IDB_KEY_ROOT); } catch { saved = undefined; }
+  if (!saved) { setStatus("no-folder"); return; }
+  _root = saved;
+  _rootName = saved.name;
+  try {
+    const perm = await (saved as WithPermissions).queryPermission({ mode: "readwrite" });
+    if (perm === "granted") await loadAll();
+    else setStatus("needs-permission");
+  } catch {
+    setStatus("needs-permission");
   }
+}
+
+export async function pickFolder(): Promise<void> {
+  if (typeof window === "undefined" || !("showDirectoryPicker" in window)) {
+    setStatus("no-support"); return;
+  }
+  try {
+    const handle = await (window as unknown as {
+      showDirectoryPicker: (opts?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
+    }).showDirectoryPicker({ mode: "readwrite" });
+    _root = handle;
+    _rootName = handle.name;
+    try { await idbPut(IDB_KEY_ROOT, handle); } catch { /* ignore */ }
+    await loadAll();
+  } catch (e) {
+    // user cancelled
+    if ((e as Error).name !== "AbortError") console.error(e);
+  }
+}
+
+export async function reconnectFolder(): Promise<void> {
+  if (!_root) { setStatus("no-folder"); return; }
+  try {
+    const perm = await (_root as WithPermissions).requestPermission({ mode: "readwrite" });
+    if (perm === "granted") await loadAll();
+    else setStatus("needs-permission");
+  } catch (e) {
+    console.error(e);
+    setStatus("needs-permission");
+  }
+}
+
+export async function forgetFolder(): Promise<void> {
+  _root = null;
+  _rootName = null;
+  _items = [];
+  _views = [];
+  _sidecar = { meta: {}, order: {}, views: [] };
+  try { await idbDel(IDB_KEY_ROOT); } catch { /* ignore */ }
+  setStatus("no-folder");
 }
 
 if (typeof window !== "undefined") {
-  supabase.auth.getSession().then(({ data }) => {
-    const uid = data.session?.user.id ?? null;
-    if (uid !== _currentUserId) {
-      _currentUserId = uid;
-      _loaded = false;
-      ensureLoaded();
-      subscribeRealtime();
-    }
-  });
-  supabase.auth.onAuthStateChange((_event, session) => {
-    const uid = session?.user.id ?? null;
-    if (uid !== _currentUserId) {
-      unsubscribeRealtime();
-      _currentUserId = uid;
-      _loaded = false;
-      _items = [];
-      _views = [];
-      notify();
-      ensureLoaded();
-      subscribeRealtime();
-    }
-  });
+  void tryRestore();
 }
 
-
-function useStore<T>(selector: () => T): T {
+// ---------- Subscription hook ----------
+function useStore<T>(sel: () => T): T {
   const [, force] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => {
-    ensureLoaded();
     const cb = () => force();
     _subs.add(cb);
-    return () => {
-      _subs.delete(cb);
-    };
+    return () => { _subs.delete(cb); };
   }, []);
-  return selector();
+  return sel();
 }
 
-export function useItems(): Item[] {
-  return useStore(() => _items);
-}
+export function useItems(): Item[] { return useStore(() => _items); }
+export function useViews(): View[] { return useStore(() => _views); }
+export function useRootStatus(): RootStatus { return useStore(() => _status); }
+export function useRootName(): string | null { return useStore(() => _rootName); }
 
-export function useViews(): View[] {
-  return useStore(() => _views);
-}
-
-export function getItem(id: string): Item | undefined {
-  return _items.find((i) => i.id === id);
-}
+export function getItem(id: string): Item | undefined { return _items.find((i) => i.id === id); }
 
 export function getBreadcrumb(folderId: string | null): { id: string | null; name: string }[] {
   const trail: { id: string | null; name: string }[] = [];
@@ -214,176 +341,274 @@ export function getBreadcrumb(folderId: string | null): { id: string | null; nam
   return trail;
 }
 
-function nextPosition(filter: (i: Item) => boolean): number {
-  const siblings = _items.filter(filter);
-  const max = siblings.reduce((m, i) => Math.max(m, (i as Item & { position?: number }).updatedAt), 0);
-  return Math.max(Date.now(), max + 1);
+// ---------- Mutations ----------
+function uniqueName(parentId: string | null, base: string, kind: "doc" | "folder"): string {
+  const siblings = _items.filter((i) => i.parentId === parentId && i.type === kind).map((i) => i.name);
+  let n = base;
+  let k = 2;
+  while (siblings.includes(n)) n = `${base} ${k++}`;
+  return n;
 }
 
-// ---------- Mutations ----------
+function insertOrder(parentId: string | null, id: string) {
+  const k = parentId ?? "";
+  const arr = _sidecar.order[k] ?? _items.filter((i) => i.parentId === parentId).map((i) => i.id);
+  if (!arr.includes(id)) arr.push(id);
+  _sidecar.order[k] = arr;
+}
 
-function genId(): string {
-  return (typeof crypto !== "undefined" && "randomUUID" in crypto)
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+function removeOrder(id: string, parentId: string | null) {
+  const k = parentId ?? "";
+  const arr = _sidecar.order[k];
+  if (!arr) return;
+  _sidecar.order[k] = arr.filter((x) => x !== id);
 }
 
 export function createDoc(parentId: string | null, name = "Untitled"): string {
-  const id = genId();
-  if (!_currentUserId) return id;
-  const content = `# ${name}\n\nStart writing...`;
-  const position = nextPosition((i) => i.parentId === parentId);
-  const newItem: Item = {
-    id, type: "doc", name, parentId, content, updatedAt: Date.now(), starred: false,
-  };
-  _items = [..._items, newItem];
+  const finalName = uniqueName(parentId, sanitizeName(name), "doc");
+  const path = joinPath(parentId, finalName);
+  const id = idDoc(path);
+  const content = `# ${finalName}\n\nStart writing...`;
+  const item: Item = { id, type: "doc", name: finalName, parentId, content, updatedAt: Date.now(), starred: false };
+  _items = [..._items, item];
+  insertOrder(parentId, id);
   notify();
-  void supabase.from("items").insert({
-    id, user_id: _currentUserId, type: "doc", name, parent_id: parentId,
-    content, position,
-  }).then(({ error }) => { if (error) console.error(error); });
+  void (async () => {
+    try {
+      const parts = path.split("/");
+      const fileName = parts.pop()! + ".md";
+      const dir = await resolveDir(parts.join("/"), true);
+      const fh = await dir.getFileHandle(fileName, { create: true });
+      const w = await fh.createWritable();
+      await w.write(content);
+      await w.close();
+      scheduleSidecarWrite();
+    } catch (e) { console.error(e); }
+  })();
   return id;
 }
 
 export function createFolder(parentId: string | null, name = "New folder"): string {
-  const id = genId();
-  if (!_currentUserId) return id;
+  const finalName = uniqueName(parentId, sanitizeName(name), "folder");
+  const path = joinPath(parentId, finalName);
+  const id = idFolder(path);
   const color = FOLDER_COLORS[0];
-  const position = nextPosition((i) => i.parentId === parentId);
-  const newItem: Item = {
-    id, type: "folder", name, parentId, color, updatedAt: Date.now(), starred: false,
-  };
-  _items = [..._items, newItem];
+  const item: Item = { id, type: "folder", name: finalName, parentId, color, updatedAt: Date.now(), starred: false };
+  _items = [..._items, item];
+  insertOrder(parentId, id);
+  _sidecar.meta[id] = { color };
   notify();
-  void supabase.from("items").insert({
-    id, user_id: _currentUserId, type: "folder", name, parent_id: parentId,
-    color, position,
-  }).then(({ error }) => { if (error) console.error(error); });
+  void (async () => {
+    try {
+      await resolveDir(path, true);
+      scheduleSidecarWrite();
+    } catch (e) { console.error(e); }
+  })();
   return id;
 }
 
 export function updateItem(id: string, patch: Partial<Item>) {
   const idx = _items.findIndex((i) => i.id === id);
   if (idx === -1) return;
-  _items = _items.map((i, k) =>
-    k === idx ? ({ ...i, ...patch, updatedAt: Date.now() } as Item) : i,
-  );
+  const cur = _items[idx];
+  const nextName = "name" in patch && patch.name ? sanitizeName(patch.name) : cur.name;
+  if (nextName !== cur.name) {
+    performRename(cur, nextName);
+    return;
+  }
+
+  const next = { ...cur, ...patch, updatedAt: Date.now() } as Item;
+  _items = _items.map((i, k) => (k === idx ? next : i));
+  const meta: SidecarMeta = { ..._sidecar.meta[id] };
+  if ("color" in patch && (patch as { color?: string }).color !== undefined) meta.color = (patch as { color?: string }).color!;
+  if ("starred" in patch) meta.starred = !!patch.starred;
+  _sidecar.meta[id] = meta;
   notify();
-  const dbPatch: Record<string, unknown> = {};
-  if ("name" in patch) dbPatch.name = patch.name;
-  if ("content" in patch && (patch as { content?: string }).content !== undefined) {
-    dbPatch.content = (patch as { content?: string }).content;
+
+  if (cur.type === "doc" && "content" in patch) {
+    const content = (patch as { content?: string }).content;
+    if (typeof content === "string") {
+      void (async () => {
+        try {
+          const parts = pathOf(id).split("/");
+          const fileName = parts.pop()! + ".md";
+          const dir = await resolveDir(parts.join("/"));
+          const fh = await dir.getFileHandle(fileName, { create: true });
+          const w = await fh.createWritable();
+          await w.write(content);
+          await w.close();
+        } catch (e) { console.error(e); }
+      })();
+    }
   }
-  if ("color" in patch && (patch as { color?: string }).color !== undefined) {
-    dbPatch.color = (patch as { color?: string }).color;
-  }
-  if ("starred" in patch) dbPatch.starred = !!patch.starred;
-  if ("parentId" in patch) dbPatch.parent_id = patch.parentId;
-  if (Object.keys(dbPatch).length === 0) return;
-  void supabase.from("items").update(dbPatch as never).eq("id", id).then(({ error }) => {
-    if (error) console.error(error);
+  scheduleSidecarWrite();
+}
+
+function performRename(cur: Item, newName: string) {
+  const oldId = cur.id;
+  const oldPath = pathOf(oldId);
+  const parentPath = cur.parentId ? pathOf(cur.parentId) : "";
+  const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+  const newId = cur.type === "doc" ? idDoc(newPath) : idFolder(newPath);
+  if (newId === oldId) return;
+
+  // Guard against overwriting sibling with same-name/type
+  const siblingConflict = _items.some(
+    (i) => i.parentId === cur.parentId && i.type === cur.type && i.name === newName,
+  );
+  if (siblingConflict) return;
+
+  const remap = (id: string): string => {
+    if (id === oldId) return newId;
+    if (cur.type === "folder") {
+      const p = id.slice(2);
+      if (p === oldPath || p.startsWith(oldPath + "/")) {
+        const rest = p.slice(oldPath.length); // "" or "/xxx..."
+        return id.slice(0, 2) + newPath + rest;
+      }
+    }
+    return id;
+  };
+
+  _items = _items.map((i) => {
+    const nid = remap(i.id);
+    const npid = i.parentId ? remap(i.parentId) : null;
+    if (i.id === oldId) return { ...i, id: nid, name: newName, updatedAt: Date.now() } as Item;
+    if (nid !== i.id || npid !== i.parentId) return { ...i, id: nid, parentId: npid } as Item;
+    return i;
   });
 
+  const newMeta: Record<string, SidecarMeta> = {};
+  for (const [k, v] of Object.entries(_sidecar.meta)) newMeta[remap(k)] = v;
+  _sidecar.meta = newMeta;
+  const newOrder: Record<string, string[]> = {};
+  for (const [k, arr] of Object.entries(_sidecar.order)) {
+    const nk = k ? remap(k) : "";
+    newOrder[nk] = arr.map(remap);
+  }
+  _sidecar.order = newOrder;
+  _sidecar.views = _sidecar.views.map((v) => ({ ...v, itemIds: v.itemIds.map(remap) }));
+  _views = _views.map((v) => ({ ...v, itemIds: v.itemIds.map(remap) }));
+  notify();
+
+  void (async () => {
+    try {
+      const parentDir = await resolveDir(parentPath);
+      const oldLeaf = oldPath.split("/").pop()!;
+      if (cur.type === "doc") {
+        const fh = await parentDir.getFileHandle(oldLeaf + ".md");
+        const withMove = fh as FileSystemFileHandle & { move?: (n: string) => Promise<void> };
+        if (typeof withMove.move === "function") {
+          await withMove.move(newName + ".md");
+        } else {
+          const file = await fh.getFile();
+          const text = await file.text();
+          const nfh = await parentDir.getFileHandle(newName + ".md", { create: true });
+          const w = await nfh.createWritable();
+          await w.write(text);
+          await w.close();
+          await parentDir.removeEntry(oldLeaf + ".md");
+        }
+      } else {
+        const dh = await parentDir.getDirectoryHandle(oldLeaf);
+        const withMove = dh as FileSystemDirectoryHandle & { move?: (n: string) => Promise<void> };
+        if (typeof withMove.move === "function") {
+          await withMove.move(newName);
+        } else {
+          console.warn("Folder rename is not supported in this browser");
+        }
+      }
+      scheduleSidecarWrite();
+    } catch (e) { console.error(e); }
+  })();
 }
 
 export function deleteItem(id: string) {
-  // collect descendants
+  const item = _items.find((i) => i.id === id);
+  if (!item) return;
   const toDelete = new Set<string>([id]);
   let changed = true;
   while (changed) {
     changed = false;
     for (const it of _items) {
       if (it.parentId && toDelete.has(it.parentId) && !toDelete.has(it.id)) {
-        toDelete.add(it.id);
-        changed = true;
+        toDelete.add(it.id); changed = true;
       }
     }
   }
   _items = _items.filter((i) => !toDelete.has(i.id));
-  _views = _views.map((v) => ({ ...v, itemIds: v.itemIds.filter((i) => !toDelete.has(i)) }));
+  removeOrder(id, item.parentId);
+  for (const did of toDelete) delete _sidecar.meta[did];
+  _views = _views.map((v) => ({ ...v, itemIds: v.itemIds.filter((x) => !toDelete.has(x)) }));
+  _sidecar.views = _sidecar.views.map((v) => ({ ...v, itemIds: v.itemIds.filter((x) => !toDelete.has(x)) }));
   notify();
-  // DB cascade handles children via parent_id FK; delete root only
-  void supabase.from("items").delete().eq("id", id).then(({ error }) => {
-    if (error) console.error(error);
-  });
+  void (async () => {
+    try {
+      const parentPath = item.parentId ? pathOf(item.parentId) : "";
+      const parentDir = await resolveDir(parentPath);
+      const leaf = pathOf(id).split("/").pop()!;
+      const entry = item.type === "doc" ? leaf + ".md" : leaf;
+      await parentDir.removeEntry(entry, { recursive: item.type === "folder" });
+      scheduleSidecarWrite();
+    } catch (e) { console.error(e); }
+  })();
 }
 
 export function reorderItem(activeId: string, overId: string, position: "before" | "after" = "before") {
   if (activeId === overId) return;
-  const activeIdx = _items.findIndex((i) => i.id === activeId);
-  const overIdx = _items.findIndex((i) => i.id === overId);
-  if (activeIdx === -1 || overIdx === -1) return;
-  if (_items[activeIdx].parentId !== _items[overIdx].parentId) return;
-  const next = [..._items];
-  const [moved] = next.splice(activeIdx, 1);
-  const newOverIdx = next.findIndex((i) => i.id === overId);
-  const insertAt = position === "after" ? newOverIdx + 1 : newOverIdx;
-  next.splice(insertAt, 0, moved);
-  _items = next;
+  const a = _items.find((i) => i.id === activeId);
+  const o = _items.find((i) => i.id === overId);
+  if (!a || !o || a.parentId !== o.parentId) return;
+  const k = a.parentId ?? "";
+  const siblings = _items.filter((i) => i.parentId === a.parentId);
+  const order = _sidecar.order[k] ?? siblings.map((i) => i.id);
+  const next = order.filter((id) => id !== activeId);
+  const oIdx = next.indexOf(overId);
+  const insertAt = position === "after" ? oIdx + 1 : oIdx;
+  next.splice(insertAt, 0, activeId);
+  _sidecar.order[k] = next;
+  _items = sortItemsByOrder(_items);
   notify();
-  // Recompute positions for siblings
-  const parentId = moved.parentId;
-  const siblings = _items.filter((i) => i.parentId === parentId);
-  void Promise.all(
-    siblings.map((it, idx) =>
-      supabase.from("items").update({ position: idx + 1 }).eq("id", it.id),
-    ),
-  ).catch((e) => console.error(e));
+  scheduleSidecarWrite();
 }
 
 // ---------- Views ----------
+function genId(): string {
+  return (typeof crypto !== "undefined" && "randomUUID" in crypto)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
 
 export function createView(name: string): string {
   const id = genId();
-  if (!_currentUserId) return id;
-  const position = Date.now();
   _views = [..._views, { id, name, itemIds: [] }];
-  notify();
-  void supabase.from("views").insert({
-    id, user_id: _currentUserId, name, position,
-  }).then(({ error }) => { if (error) console.error(error); });
+  _sidecar.views = [..._sidecar.views, { id, name, itemIds: [] }];
+  notify(); scheduleSidecarWrite();
   return id;
 }
 
 export function updateView(id: string, patch: Partial<Omit<View, "id">>) {
   _views = _views.map((v) => (v.id === id ? { ...v, ...patch } : v));
-  notify();
-  const dbPatch: Record<string, unknown> = {};
-  if (patch.name !== undefined) dbPatch.name = patch.name;
-  if (Object.keys(dbPatch).length === 0) return;
-  void supabase.from("views").update(dbPatch as never).eq("id", id).then(({ error }) => {
-    if (error) console.error(error);
-  });
-
+  _sidecar.views = _sidecar.views.map((v) => (v.id === id ? { ...v, ...patch } : v));
+  notify(); scheduleSidecarWrite();
 }
 
 export function deleteView(id: string) {
   _views = _views.filter((v) => v.id !== id);
-  notify();
-  void supabase.from("views").delete().eq("id", id).then(({ error }) => {
-    if (error) console.error(error);
-  });
+  _sidecar.views = _sidecar.views.filter((v) => v.id !== id);
+  notify(); scheduleSidecarWrite();
 }
 
 export function addItemToView(viewId: string, itemId: string) {
-  if (!_currentUserId) return;
   const v = _views.find((x) => x.id === viewId);
   if (!v || v.itemIds.includes(itemId)) return;
-  _views = _views.map((x) =>
-    x.id === viewId ? { ...x, itemIds: [...x.itemIds, itemId] } : x,
-  );
-  notify();
-  void supabase.from("view_items").insert({
-    view_id: viewId, item_id: itemId, user_id: _currentUserId, position: Date.now(),
-  }).then(({ error }) => { if (error) console.error(error); });
+  _views = _views.map((x) => (x.id === viewId ? { ...x, itemIds: [...x.itemIds, itemId] } : x));
+  _sidecar.views = _sidecar.views.map((x) => (x.id === viewId ? { ...x, itemIds: [...x.itemIds, itemId] } : x));
+  notify(); scheduleSidecarWrite();
 }
 
 export function removeItemFromView(viewId: string, itemId: string) {
-  _views = _views.map((x) =>
-    x.id === viewId ? { ...x, itemIds: x.itemIds.filter((i) => i !== itemId) } : x,
-  );
-  notify();
-  void supabase.from("view_items").delete()
-    .eq("view_id", viewId).eq("item_id", itemId)
-    .then(({ error }) => { if (error) console.error(error); });
+  _views = _views.map((x) => (x.id === viewId ? { ...x, itemIds: x.itemIds.filter((i) => i !== itemId) } : x));
+  _sidecar.views = _sidecar.views.map((x) => (x.id === viewId ? { ...x, itemIds: x.itemIds.filter((i) => i !== itemId) } : x));
+  notify(); scheduleSidecarWrite();
 }
