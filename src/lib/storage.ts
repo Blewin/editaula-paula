@@ -452,19 +452,19 @@ export function updateItem(id: string, patch: Partial<Item>): string {
   return currentId;
 }
 
-function performRename(cur: Item, newName: string) {
+function performRename(cur: Item, newName: string): string | null {
   const oldId = cur.id;
   const oldPath = pathOf(oldId);
   const parentPath = cur.parentId ? pathOf(cur.parentId) : "";
   const newPath = parentPath ? `${parentPath}/${newName}` : newName;
   const newId = cur.type === "doc" ? idDoc(newPath) : idFolder(newPath);
-  if (newId === oldId) return;
+  if (newId === oldId) return null;
 
   // Guard against overwriting sibling with same-name/type
   const siblingConflict = _items.some(
     (i) => i.parentId === cur.parentId && i.type === cur.type && i.name === newName,
   );
-  if (siblingConflict) return;
+  if (siblingConflict) return null;
 
   const remap = (id: string): string => {
     if (id === oldId) return newId;
