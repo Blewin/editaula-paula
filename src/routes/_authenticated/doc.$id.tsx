@@ -2,8 +2,8 @@ import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
-import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
+import { SheetEditor } from "@/components/SheetEditor";
 
 type DocSearch = { view?: string; folder?: string };
 
@@ -157,14 +157,9 @@ function DocEditor() {
   const [tabs, setTabs] = React.useState<Tab[]>(initialTabs);
   const [activeTab, setActiveTab] = React.useState(0);
   const [sheets, setSheets] = React.useState<string[]>(splitSheets(initialTabs[0].content));
-  const [active, setActive] = React.useState<{ sheet: number; line: number }>({
-    sheet: 0,
-    line: 0,
-  });
-  const [caretPos, setCaretPos] = React.useState<number | null>(null);
+  const [activeSheet, setActiveSheet] = React.useState(0);
   const [view, setView] = React.useState<"document" | "tiles">("document");
   const [pageLayout, setPageLayout] = React.useState<PageLayout>("verticalAll");
-  const inputRef = React.useRef<HTMLDivElement>(null);
   const mainRef = React.useRef<HTMLElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
@@ -209,8 +204,7 @@ function DocEditor() {
     setTabs(committed);
     setActiveTab(idx);
     setSheets(splitSheets(committed[idx]?.content ?? ""));
-    setActive({ sheet: 0, line: 0 });
-    setCaretPos(0);
+    setActiveSheet(0);
   };
 
   const addTab = () => {
@@ -223,8 +217,7 @@ function DocEditor() {
     setTabs(next);
     setActiveTab(next.length - 1);
     setSheets(splitSheets(""));
-    setActive({ sheet: 0, line: 0 });
-    setCaretPos(0);
+    setActiveSheet(0);
   };
 
   const renameTab = (idx: number, newName: string) => {
@@ -275,55 +268,6 @@ function DocEditor() {
     return "rounded-none";
   };
 
-  // Caret helpers for contentEditable line
-  const setCaretInEl = (el: HTMLElement, offset: number) => {
-    const sel = window.getSelection();
-    if (!sel) return;
-    const range = document.createRange();
-    const first = el.firstChild;
-    if (first && first.nodeType === 3) {
-      const len = first.textContent?.length ?? 0;
-      range.setStart(first, Math.max(0, Math.min(offset, len)));
-    } else {
-      range.setStart(el, 0);
-    }
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  };
-
-  const getCaretInEl = (el: HTMLElement): number => {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return (el.textContent ?? "").length;
-    const range = sel.getRangeAt(0);
-    if (!el.contains(range.endContainer)) return (el.textContent ?? "").length;
-    const pre = range.cloneRange();
-    pre.selectNodeContents(el);
-    pre.setEnd(range.endContainer, range.endOffset);
-    return pre.toString().length;
-  };
-
-  // Sync active line DOM content with model
-  React.useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    const sheetContent = sheets[active.sheet] ?? "";
-    const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
-    const target = linesArr[active.line] ?? "";
-    if (el.textContent !== target) el.textContent = target;
-  }, [active, sheets]);
-
-  // Focus active line and place caret
-  React.useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    if (document.activeElement !== el) el.focus();
-    if (caretPos !== null) {
-      setCaretInEl(el, caretPos);
-      setCaretPos(null);
-    }
-  }, [active, caretPos]);
-
   if (!doc || doc.type !== "doc") {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -335,201 +279,47 @@ function DocEditor() {
     );
   }
 
-  const sheetLines = (s: number): string[] => {
-    const c = sheets[s] ?? "";
-    return c.length === 0 ? [""] : c.split("\n");
+  const writeSheet = (s: number, next: string) => {
+    setSheets((cur) => {
+      if ((cur[s] ?? "") === next) return cur;
+      const copy = [...cur];
+      copy[s] = next;
+      return copy;
+    });
   };
 
-  const writeSheet = (s: number, nextLines: string[]) => {
-    const next = [...sheets];
-    next[s] = nextLines.join("\n");
-    setSheets(next);
-  };
-
-  const setLinesAndActive = (
-    s: number,
-    nextLines: string[],
-    newLine: number,
-    newCaret: number | null = null,
-  ) => {
-    writeSheet(s, nextLines);
-    setActive({ sheet: s, line: newLine });
-    if (newCaret !== null) setCaretPos(newCaret);
-  };
-
-  const focusLine = (s: number, idx: number, caret: number | null = null) => {
-    const lines = sheetLines(s);
-    const safeIdx = Math.max(0, Math.min(idx, lines.length - 1));
-    setActive({ sheet: s, line: safeIdx });
-    setCaretPos(caret ?? lines[safeIdx].length);
+  const selectAllAcrossSheets = (): boolean => {
+    if (!mainRef.current) return false;
+    (document.activeElement as HTMLElement | null)?.blur();
+    const range = document.createRange();
+    range.selectNodeContents(mainRef.current);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    return true;
   };
 
   const renderSheet = (s: number) => {
-    const lines = sheetLines(s);
-    const isActiveSheet = active.sheet === s;
-    const safeActive = isActiveSheet ? Math.min(active.line, lines.length - 1) : -1;
-
-    const onLineChange = (val: string) => {
-      if (val.includes("\n")) {
-        const parts = val.split("\n");
-        const next = [...lines];
-        next.splice(safeActive, 1, ...parts);
-        setLinesAndActive(s, next, safeActive + parts.length - 1, parts[parts.length - 1].length);
-        return;
-      }
-      const next = [...lines];
-      next[safeActive] = val;
-      writeSheet(s, next);
-    };
-
-    const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const el = e.currentTarget;
-      const val = el.textContent ?? "";
-      const pos = getCaretInEl(el);
-
-      // Select all across current tab's pages
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a" && !e.shiftKey && !e.altKey) {
-        if (mainRef.current) {
-          e.preventDefault();
-          (document.activeElement as HTMLElement | null)?.blur();
-          const range = document.createRange();
-          range.selectNodeContents(mainRef.current);
-          const sel = window.getSelection();
-          sel?.removeAllRanges();
-          sel?.addRange(range);
-        }
-        return;
-      }
-
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        const before = val.slice(0, pos);
-        const after = val.slice(pos);
-        const next = [...lines];
-        next.splice(safeActive, 1, before, after);
-        setLinesAndActive(s, next, safeActive + 1, 0);
-        return;
-      }
-      if (e.key === "Backspace" && pos === 0 && safeActive > 0) {
-        e.preventDefault();
-        const prev = lines[safeActive - 1];
-        const next = [...lines];
-        next.splice(safeActive - 1, 2, prev + val);
-        setLinesAndActive(s, next, safeActive - 1, prev.length);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        if (safeActive > 0) {
-          e.preventDefault();
-          setCaretPos(Math.min(pos, lines[safeActive - 1].length));
-          setActive({ sheet: s, line: safeActive - 1 });
-        } else if (s > 0) {
-          e.preventDefault();
-          const prev = sheetLines(s - 1);
-          setCaretPos(Math.min(pos, prev[prev.length - 1].length));
-          setActive({ sheet: s - 1, line: prev.length - 1 });
-        }
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        if (safeActive < lines.length - 1) {
-          e.preventDefault();
-          setCaretPos(Math.min(pos, lines[safeActive + 1].length));
-          setActive({ sheet: s, line: safeActive + 1 });
-        } else if (s < sheets.length - 1) {
-          e.preventDefault();
-          const nextLines = sheetLines(s + 1);
-          setCaretPos(Math.min(pos, nextLines[0].length));
-          setActive({ sheet: s + 1, line: 0 });
-        }
-        return;
-      }
-      if (e.key === "ArrowLeft" && pos === 0) {
-        if (safeActive > 0) {
-          e.preventDefault();
-          setCaretPos(lines[safeActive - 1].length);
-          setActive({ sheet: s, line: safeActive - 1 });
-        } else if (s > 0) {
-          e.preventDefault();
-          const prev = sheetLines(s - 1);
-          setCaretPos(prev[prev.length - 1].length);
-          setActive({ sheet: s - 1, line: prev.length - 1 });
-        }
-        return;
-      }
-      if (e.key === "ArrowRight" && pos === val.length) {
-        if (safeActive < lines.length - 1) {
-          e.preventDefault();
-          setCaretPos(0);
-          setActive({ sheet: s, line: safeActive + 1 });
-        } else if (s < sheets.length - 1) {
-          e.preventDefault();
-          setCaretPos(0);
-          setActive({ sheet: s + 1, line: 0 });
-        }
-        return;
-      }
-      if (e.key === "Tab") {
-        e.preventDefault();
-        const before = val.slice(0, pos);
-        const after = val.slice(pos);
-        const next = [...lines];
-        next[safeActive] = before + "\t" + after;
-        writeSheet(s, next);
-        setCaretPos(pos + 1);
-        setActive({ sheet: s, line: safeActive });
-        return;
-      }
-    };
-
     const borderRadius = pageBorderRadius(s);
-
     return (
       <div
         key={s}
         className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
-        onMouseDown={(e) => {
-          // Clear any prior cross-line selection when starting a new click
-          const sel = window.getSelection();
-          if (sel && !sel.isCollapsed) sel.removeAllRanges();
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            focusLine(s, lines.length - 1);
-          }
-        }}
       >
-        {lines.map((line, i) =>
-          isActiveSheet && i === safeActive ? (
-            <div
-              key={i}
-              ref={inputRef}
-              contentEditable
-              suppressContentEditableWarning
-              onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
-              onKeyDown={onKeyDown}
-              className="block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem]"
-              spellCheck={false}
-            />
-          ) : (
-            <div
-              key={i}
-              onClick={() => {
-                const sel = window.getSelection();
-                if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
-                focusLine(s, i);
-              }}
-              className="my-0 cursor-text min-h-[1.25rem]"
-              dangerouslySetInnerHTML={{ __html: renderLine(line) }}
-            />
-          ),
-        )}
+        <SheetEditor
+          value={sheets[s] ?? ""}
+          onChange={(v) => writeSheet(s, v)}
+          onFocus={() => setActiveSheet(s)}
+          onSelectAll={selectAllAcrossSheets}
+          className="min-h-[calc(50vh-8rem)]"
+        />
         <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60 select-none">
           {s + 1}
         </span>
       </div>
-
     );
   };
+
 
 
   const splitParagraphs = (s: string): string[] => {
