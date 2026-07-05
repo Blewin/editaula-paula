@@ -8,6 +8,7 @@ export type Item =
       parentId: string | null;
       updatedAt: number;
       starred?: boolean;
+      preview?: string;
     }
   | {
       id: string;
