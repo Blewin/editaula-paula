@@ -722,6 +722,17 @@ export async function writeDocPage(
     await w.write(content);
     await w.close();
   }
+  // Refresh in-memory preview for this doc so home tiles stay current.
+  const meta = _sidecar.docs[path];
+  if (meta) {
+    const preview = await readDocPreview(dir, meta.tabs);
+    const idx = _items.findIndex((i) => i.id === docId);
+    if (idx !== -1 && _items[idx].type === "doc") {
+      const next = { ..._items[idx], preview } as Item;
+      _items = _items.map((i, k) => (k === idx ? next : i));
+      notify();
+    }
+  }
 }
 
 export async function renameDocTab(docId: string, oldName: string, newName: string): Promise<boolean> {
