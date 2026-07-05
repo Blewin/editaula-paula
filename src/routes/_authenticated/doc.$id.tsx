@@ -531,16 +531,26 @@ function DocEditor() {
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/plain", String(i));
+                  e.dataTransfer.setData("text/plain", JSON.stringify({ sheet: s, index: i }));
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   e.dataTransfer.dropEffect = "move";
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  const from = Number(e.dataTransfer.getData("text/plain"));
-                  if (!Number.isNaN(from)) reorderSheetParagraphs(s, from, i);
+                  e.stopPropagation();
+                  const raw = e.dataTransfer.getData("text/plain");
+                  if (!raw) return;
+                  try {
+                    const { sheet: fromSheet, index: fromIdx } = JSON.parse(raw);
+                    if (typeof fromSheet === "number" && typeof fromIdx === "number") {
+                      moveParagraph(fromSheet, fromIdx, s, i);
+                    }
+                  } catch {
+                    // ignore
+                  }
                 }}
                 className="cursor-move w-full rounded-md border bg-background px-4 py-2 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words"
               >
