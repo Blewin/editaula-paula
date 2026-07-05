@@ -195,11 +195,19 @@ function DocEditor() {
     const t = setTimeout(() => {
       const content = serializeTabs(tabsWithCurrent);
       if (name !== doc.name || content !== doc.content) {
-        updateItem(id, { name, content } as Partial<Item>);
+        const newId = updateItem(id, { name, content } as Partial<Item>);
+        if (newId !== id) {
+          navigate({
+            to: "/doc/$id",
+            params: { id: newId },
+            search: { view: fromView, folder: fromFolder },
+            replace: true,
+          });
+        }
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [name, tabsWithCurrent, id, doc]);
+  }, [name, tabsWithCurrent, id, doc, navigate, fromView, fromFolder]);
 
   const switchTab = (idx: number) => {
     if (idx === activeTab) return;
