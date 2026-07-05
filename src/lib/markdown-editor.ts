@@ -286,11 +286,14 @@ const editorTheme = EditorView.theme({
     borderLeftColor: "var(--text-normal, hsl(var(--foreground)))",
     borderLeftWidth: "2px",
   },
-  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, & .cm-selectionLayer .cm-selectionBackground": {
+  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
     background: "rgba(100, 149, 237, 0.30)",
   },
   ".cm-content ::selection, .cm-content::selection": {
     background: "transparent",
+  },
+  ".cm-activeLine, .cm-activeLineGutter": {
+    backgroundColor: "transparent",
   },
   ".cm-line": { padding: "0 2px" },
   ".cm-md-h1": { fontSize: "1.7em", fontWeight: "700", lineHeight: "1.3", paddingTop: "0.35em" },
