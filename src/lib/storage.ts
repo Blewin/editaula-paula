@@ -529,6 +529,7 @@ function performRename(cur: Item, newName: string): string | null {
       scheduleSidecarWrite();
     } catch (e) { console.error(e); }
   })();
+  return newId;
 }
 
 export function deleteItem(id: string) {
