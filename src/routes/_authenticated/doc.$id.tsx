@@ -715,6 +715,7 @@ function DocEditor() {
           )}
 
           <main
+            ref={mainRef}
             className={`min-w-0 ${isGridLayout ? "grid grid-cols-2 gap-[4px]" : "flex flex-col gap-[4px]"} ${
               tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
