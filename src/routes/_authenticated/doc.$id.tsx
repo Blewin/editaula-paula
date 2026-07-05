@@ -97,7 +97,7 @@ function TabItem({
             setEditing(false);
           }
         }}
-        className={`text-left text-sm px-3 py-1 rounded-md outline-none ${
+        className={`text-left text-sm px-3 py-2 rounded-md outline-none ${
           isActive ? "font-medium" : ""
         }`}
       />
@@ -111,7 +111,7 @@ function TabItem({
         else onSelect();
       }}
       onDoubleClick={() => setEditing(true)}
-      className={`text-left text-sm px-3 py-1 rounded-md truncate transition-colors ${
+      className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
         isActive
           ? "bg-accent text-accent-foreground font-medium"
           : "hover:bg-muted text-muted-foreground"
@@ -694,13 +694,14 @@ function DocEditor() {
             <aside className="w-44 shrink-0 pt-16">
               <Button
                 variant="outline"
-                className="w-full justify-start gap-2 mb-1 text-sm"
+                className="w-full justify-start gap-2 mb-2 text-sm py-2"
                 onClick={addTab}
               >
                 <Plus className="h-4 w-4" />
                 New tab
               </Button>
-              <nav className="flex flex-col gap-3">
+              <nav className="flex flex-col gap-2">
+
                 {tabs.map((t, i) => (
                   <TabItem
                     key={i}
