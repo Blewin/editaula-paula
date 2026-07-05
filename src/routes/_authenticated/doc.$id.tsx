@@ -2,8 +2,8 @@ import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
-import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
+import { SheetEditor } from "@/components/SheetEditor";
 
 type DocSearch = { view?: string; folder?: string };
 
