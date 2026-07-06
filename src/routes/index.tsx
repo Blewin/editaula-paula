@@ -565,3 +565,43 @@ function Tile({
     </div>
   );
 }
+
+function FolderCover({ color }: { color?: string }) {
+  const c = color ?? "#94a3b8";
+  const bg = `linear-gradient(135deg, ${c} 0%, color-mix(in oklab, ${c} 35%, var(--muted)) 100%)`;
+  return <div className="flex-1 m-3 mt-1 rounded-lg" style={{ background: bg }} />;
+}
+
+function DocPreview({ docId, updatedAt }: { docId: string; updatedAt: number }) {
+  const [text, setText] = React.useState<string>("");
+  React.useEffect(() => {
+    let cancelled = false;
+    void readDocPreview(docId, 500).then((t) => {
+      if (!cancelled) setText(t);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [docId, updatedAt]);
+
+  if (!text) {
+    return (
+      <div className="flex-1 px-4 pb-3 text-xs text-muted-foreground/60 font-mono">
+        Start writing…
+      </div>
+    );
+  }
+  const lines = text.split("\n");
+  const first = lines[0]?.replace(/^#+\s*/, "").replace(/^[-*]\s+/, "") ?? "";
+  const rest = lines.slice(1).join("\n").replace(/^#+\s*/gm, "");
+  return (
+    <div className="flex-1 min-h-0 px-4 pb-3 overflow-hidden font-mono text-[11px] leading-relaxed text-muted-foreground">
+      {first && (
+        <div className="text-foreground font-semibold text-[12px] mb-1.5 truncate">
+          {first}
+        </div>
+      )}
+      <div className="whitespace-pre-wrap break-words line-clamp-[10]">{rest}</div>
+    </div>
+  );
+}
