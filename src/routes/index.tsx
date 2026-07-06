@@ -232,7 +232,7 @@ function Browser() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5">
               {visible.map((item) => (
                 <Tile
                   key={item.id}
