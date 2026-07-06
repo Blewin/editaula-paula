@@ -15,6 +15,7 @@ import {
   FOLDER_COLORS,
   getBreadcrumb,
   pickFolder,
+  readDocPreview,
   removeItemFromView,
   reorderItem,
   updateItem,
@@ -231,7 +232,7 @@ function Browser() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5">
               {visible.map((item) => (
                 <Tile
                   key={item.id}
@@ -442,33 +443,41 @@ function Tile({
           e.stopPropagation();
           setEditing(true);
         }}
-        className="w-full aspect-[4/3] rounded-lg border bg-card hover:bg-accent/50 hover:shadow-sm transition-all flex flex-col items-center justify-center gap-2 p-4"
-        style={isFolder ? { borderColor: folderColor, borderWidth: 2 } : undefined}
+        className="w-full aspect-[4/5] rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col overflow-hidden text-left"
       >
+        <div className="flex items-center gap-2 px-3 pt-3 pb-2 shrink-0">
+          {isFolder ? (
+            <Folder className="size-4 shrink-0" style={{ color: folderColor }} />
+          ) : (
+            <FileText className="size-4 shrink-0 text-muted-foreground" />
+          )}
+          {editing ? (
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitRename();
+                if (e.key === "Escape") { setEditing(false); setName(item.name); }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 min-w-0 text-sm font-semibold bg-transparent outline-none border-b border-primary"
+            />
+          ) : (
+            <span className="flex-1 min-w-0 text-sm font-semibold truncate">
+              {item.name}
+            </span>
+          )}
+          <span className="w-7 shrink-0" aria-hidden />
+        </div>
         {isFolder ? (
-          <Folder className="size-10" style={{ color: folderColor, fill: folderColor, fillOpacity: 0.15 }} />
+          <FolderCover color={folderColor} />
         ) : (
-          <FileText className="size-10 text-muted-foreground" />
-        )}
-        {editing ? (
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitRename();
-              if (e.key === "Escape") { setEditing(false); setName(item.name); }
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full text-center text-sm font-medium bg-transparent outline-none border-b border-primary"
-          />
-        ) : (
-          <span className="text-sm font-medium text-center line-clamp-2 break-words">
-            {item.name}
-          </span>
+          <DocPreview docId={item.id} updatedAt={item.updatedAt} />
         )}
       </button>
+
 
       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         {item.starred && (
@@ -553,6 +562,46 @@ function Tile({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+    </div>
+  );
+}
+
+function FolderCover({ color }: { color?: string }) {
+  const c = color ?? "#94a3b8";
+  const bg = `linear-gradient(135deg, ${c} 0%, color-mix(in oklab, ${c} 35%, var(--muted)) 100%)`;
+  return <div className="flex-1 m-3 mt-1 rounded-lg" style={{ background: bg }} />;
+}
+
+function DocPreview({ docId, updatedAt }: { docId: string; updatedAt: number }) {
+  const [text, setText] = React.useState<string>("");
+  React.useEffect(() => {
+    let cancelled = false;
+    void readDocPreview(docId, 500).then((t) => {
+      if (!cancelled) setText(t);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [docId, updatedAt]);
+
+  if (!text) {
+    return (
+      <div className="flex-1 px-4 pb-3 text-xs text-muted-foreground/60 font-mono">
+        Start writing…
+      </div>
+    );
+  }
+  const lines = text.split("\n");
+  const first = lines[0]?.replace(/^#+\s*/, "").replace(/^[-*]\s+/, "") ?? "";
+  const rest = lines.slice(1).join("\n").replace(/^#+\s*/gm, "");
+  return (
+    <div className="flex-1 min-h-0 px-4 pb-3 overflow-hidden font-mono text-[11px] leading-relaxed text-muted-foreground">
+      {first && (
+        <div className="text-foreground font-semibold text-[12px] mb-1.5 truncate">
+          {first}
+        </div>
+      )}
+      <div className="whitespace-pre-wrap break-words line-clamp-[10]">{rest}</div>
     </div>
   );
 }

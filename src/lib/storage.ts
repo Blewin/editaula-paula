@@ -676,6 +676,37 @@ export async function readDoc(docId: string): Promise<DocData> {
   };
 }
 
+export async function readDocPreview(docId: string, maxChars = 400): Promise<string> {
+  if (!_root) return "";
+  try {
+    const path = pathOf(docId);
+    const meta = _sidecar.docs[path] ?? { tabs: ["Tab 1"] };
+    const firstTab = meta.tabs[0] ?? "Tab 1";
+    const dir = await resolveDir(path);
+    const prefix = `${firstTab} - Page `;
+    let bestN = Infinity;
+    let bestHandle: FileSystemFileHandle | null = null;
+    const entries = (dir as unknown as { entries: () => DirEntries }).entries();
+    for await (const [name, handle] of entries) {
+      if (handle.kind !== "file" || !name.endsWith(".md")) continue;
+      if (!name.startsWith(prefix)) continue;
+      const numStr = name.slice(prefix.length, -3);
+      if (!/^\d+$/.test(numStr)) continue;
+      const n = parseInt(numStr, 10);
+      if (n >= 1 && n < bestN) {
+        bestN = n;
+        bestHandle = handle as FileSystemFileHandle;
+      }
+    }
+    if (!bestHandle) return "";
+    const file = await bestHandle.getFile();
+    const text = await file.text();
+    return text.slice(0, maxChars);
+  } catch {
+    return "";
+  }
+}
+
 export async function writeDocPage(
   docId: string,
   tabName: string,
