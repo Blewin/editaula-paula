@@ -11,6 +11,19 @@ import {
 export function FolderGate({ children }: { children: React.ReactNode }) {
   const status = useRootStatus();
   const rootName = useRootName();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">Editaula</h1>
+          <p className="mt-3 text-sm text-muted-foreground">Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (status === "ready") return <>{children}</>;
 
