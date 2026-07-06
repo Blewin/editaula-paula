@@ -442,75 +442,31 @@ function Tile({
           e.stopPropagation();
           setEditing(true);
         }}
-        className="w-full aspect-[4/3] rounded-lg border overflow-hidden hover:shadow-md transition-all flex flex-col text-left"
-        style={
-          isFolder
-            ? {
-                borderColor: folderColor,
-                borderWidth: 2,
-                background: `linear-gradient(135deg, ${folderColor}33 0%, ${folderColor}0d 55%, transparent 100%)`,
-              }
-            : undefined
-        }
+        className="w-full aspect-[4/3] rounded-lg border bg-card hover:bg-accent/50 hover:shadow-sm transition-all flex flex-col items-center justify-center gap-2 p-4"
+        style={isFolder ? { borderColor: folderColor, borderWidth: 2 } : undefined}
       >
         {isFolder ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-2 p-4">
-            <Folder
-              className="size-10"
-              style={{ color: folderColor, fill: folderColor, fillOpacity: 0.25 }}
-            />
-            {editing ? (
-              <input
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitRename();
-                  if (e.key === "Escape") { setEditing(false); setName(item.name); }
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full text-center text-sm font-medium bg-transparent outline-none border-b border-primary"
-              />
-            ) : (
-              <span className="text-sm font-medium text-center line-clamp-2 break-words">
-                {item.name}
-              </span>
-            )}
-          </div>
+          <Folder className="size-10" style={{ color: folderColor, fill: folderColor, fillOpacity: 0.15 }} />
         ) : (
-          <div className="flex-1 flex flex-col bg-card">
-            <div className="px-3 pt-2.5 pb-1.5 flex items-center gap-2 border-b bg-muted/40">
-              <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-              {editing ? (
-                <input
-                  autoFocus
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onBlur={commitRename}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitRename();
-                    if (e.key === "Escape") { setEditing(false); setName(item.name); }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex-1 min-w-0 text-xs font-medium bg-transparent outline-none border-b border-primary"
-                />
-              ) : (
-                <span className="flex-1 min-w-0 text-xs font-medium truncate">
-                  {item.name}
-                </span>
-              )}
-            </div>
-            <div className="flex-1 px-3 py-2 overflow-hidden">
-              {(item as Extract<Item, { type: "doc" }>).preview ? (
-                <p className="text-[11px] leading-snug text-muted-foreground whitespace-pre-wrap line-clamp-6 break-words">
-                  {(item as Extract<Item, { type: "doc" }>).preview}
-                </p>
-              ) : (
-                <p className="text-[11px] italic text-muted-foreground/60">Empty</p>
-              )}
-            </div>
-          </div>
+          <FileText className="size-10 text-muted-foreground" />
+        )}
+        {editing ? (
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") { setEditing(false); setName(item.name); }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full text-center text-sm font-medium bg-transparent outline-none border-b border-primary"
+          />
+        ) : (
+          <span className="text-sm font-medium text-center line-clamp-2 break-words">
+            {item.name}
+          </span>
         )}
       </button>
 
