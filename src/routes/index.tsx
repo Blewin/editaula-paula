@@ -15,6 +15,7 @@ import {
   FOLDER_COLORS,
   getBreadcrumb,
   pickFolder,
+  readDocPreview,
   removeItemFromView,
   reorderItem,
   updateItem,
