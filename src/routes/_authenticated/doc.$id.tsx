@@ -739,7 +739,7 @@ function DocEditor() {
             </main>
             <button
               onClick={addSheet}
-              className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card py-4 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+              className="mt-1.5 w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card py-4 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <Plus className="h-4 w-4" />
               New page
