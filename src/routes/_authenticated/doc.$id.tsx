@@ -717,14 +717,22 @@ function DocEditor() {
 
           <main
             ref={mainRef}
-            className={`min-w-0 ${isGridLayout ? "grid grid-cols-4 gap-[4px]" : "flex flex-col gap-[4px]"} ${
+            className={`min-w-0 ${isGridLayout || view === "tiles" ? "grid grid-cols-4 gap-[4px]" : "flex flex-col gap-[4px]"} ${
               tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
           >
             {sheets.slice(0, visiblePageCount).map((_, s) => {
-              const colSpanClass = s === 0 ? "col-span-3" : s === 1 ? "col-span-1" : "col-span-2";
+              const useHorizontal = isGridLayout || view === "tiles";
+              const colSpanClass = !useHorizontal
+                ? undefined
+                : s === 0
+                  ? "col-span-3"
+                  : s === 1
+                    ? "col-span-1"
+                    : "col-span-2";
               return view === "document" ? renderSheet(s, colSpanClass) : renderTiles(s, colSpanClass);
             })}
+
           </main>
         </div>
       </div>
