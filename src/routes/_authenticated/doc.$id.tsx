@@ -19,7 +19,7 @@ const SEP = "\u0001___SHEET_BREAK___\u0001";
 const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
 
 type Tab = { name: string; content: string };
-type PageLayout = "grid4" | "grid6" | "verticalAll";
+type PageLayout = "grid" | "verticalAll";
 
 function parseTabs(content: string): Tab[] {
   if (content.startsWith(TABS_MARKER)) {
@@ -235,37 +235,32 @@ function DocEditor() {
   };
 
   const addSheet = () => {
-    const next = [...sheets, ""];
+    // In grid mode, add two pages at a time to keep the 2-col layout balanced.
+    const toAdd = pageLayout === "grid" ? 2 : 1;
+    const next = [...sheets];
+    for (let i = 0; i < toAdd; i++) next.push("");
     setSheets(next);
-    setActive({ sheet: next.length - 1, line: 0 });
+    setActive({ sheet: sheets.length, line: 0 });
     setCaretPos(0);
   };
 
   const cyclePageLayout = () => {
-    const nextLayout: PageLayout =
-      pageLayout === "verticalAll"
-        ? "grid4"
-        : pageLayout === "grid4"
-          ? "grid6"
-          : "verticalAll";
-    const minimumPages = nextLayout === "grid4" ? 4 : nextLayout === "grid6" ? 6 : 2;
-    setSheets((current) => {
-      const next = [...current];
-      while (next.length < minimumPages) next.push("");
-      return next;
-    });
+    const nextLayout: PageLayout = pageLayout === "verticalAll" ? "grid" : "verticalAll";
+    if (nextLayout === "grid") {
+      setSheets((current) => {
+        const next = [...current];
+        while (next.length < 4) next.push("");
+        if (next.length % 2 !== 0) next.push("");
+        return next;
+      });
+    }
     setPageLayout(nextLayout);
   };
 
-  const isGridLayout = pageLayout === "grid4" || pageLayout === "grid6";
-  const visiblePageCount =
-    pageLayout === "grid4"
-      ? 4
-      : pageLayout === "grid6"
-        ? 6
-        : pageLayout === "verticalAll"
-          ? Math.max(2, sheets.length)
-          : 2;
+  const isGridLayout = pageLayout === "grid";
+  const visiblePageCount = isGridLayout
+    ? Math.max(4, sheets.length + (sheets.length % 2))
+    : Math.max(2, sheets.length);
 
   const pageBorderRadius = (s: number) => {
     if (isGridLayout) {
@@ -679,10 +674,8 @@ function DocEditor() {
             onClick={cyclePageLayout}
             title={
               pageLayout === "verticalAll"
-                ? "Show 4 pages"
-                : pageLayout === "grid4"
-                  ? "Show 6 pages"
-                  : "Show all written pages vertically"
+                ? "Show pages in a grid"
+                : "Show pages vertically"
             }
           >
             <Grid4Icon className="h-4 w-4" />
