@@ -314,10 +314,9 @@ function DocEditor() {
     return pre.toString().length;
   };
 
-  // Sync active line DOM content with model. Include `view` so we re-sync
-  // after switching back from tiles view (the contentEditable div is a fresh
-  // node then, and without this it would render empty until the next state
-  // change caused it to look like a page vanished).
+  // Keep the editable line aligned with the model after programmatic changes.
+  // The line text is also rendered directly below so it is never blank while
+  // effects wait to run after a view switch.
   React.useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -530,7 +529,9 @@ function DocEditor() {
               onKeyDown={onKeyDown}
               className="block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem]"
               spellCheck={false}
-            />
+            >
+              {line}
+            </div>
           ) : (
             <div
               key={i}
