@@ -508,7 +508,7 @@ function DocEditor() {
     return (
       <div
         key={`document-${s}`}
-        className={`relative w-full ${pageMinHeight(s)} border bg-card p-4 ${borderRadius}`}
+        className={`relative w-full ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
         onMouseDown={(e) => {
           // Clear any prior cross-line selection when starting a new click
           const sel = window.getSelection();
@@ -553,7 +553,7 @@ function DocEditor() {
           ),
         )}
         <div
-          className="absolute bottom-2 left-3 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
+          className="absolute bottom-4 left-5 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
           title="Delete page"
           aria-label="Delete page"
         >
@@ -569,7 +569,7 @@ function DocEditor() {
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
-        <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60 select-none">
+        <span className="pointer-events-none absolute bottom-4 right-5 text-xs text-muted-foreground/60 select-none">
           {s + 1}
         </span>
       </div>
