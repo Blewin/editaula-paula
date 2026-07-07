@@ -364,7 +364,13 @@ function DocEditor() {
     setCaretPos(caret ?? lines[safeIdx].length);
   };
 
+  const pageMinHeight = (s: number): string => {
+    const isFirstRow = pageLayout === "verticalAll" ? s === 0 : s <= 1;
+    return isFirstRow ? "min-h-[75vh]" : "min-h-[25vh]";
+  };
+
   const renderSheet = (s: number) => {
+
     const lines = sheetLines(s);
     const isActiveSheet = active.sheet === s;
     const safeActive = isActiveSheet ? Math.min(active.line, lines.length - 1) : -1;
