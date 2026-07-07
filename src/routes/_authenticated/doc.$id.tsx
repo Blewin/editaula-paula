@@ -506,7 +506,7 @@ function DocEditor() {
 
     return (
       <div
-        key={s}
+        key={`document-${s}`}
         className={`relative w-full ${pageMinHeight(s)} border bg-card p-4 ${borderRadius}`}
         onMouseDown={(e) => {
           // Clear any prior cross-line selection when starting a new click
@@ -599,7 +599,7 @@ function DocEditor() {
     const borderRadius = pageBorderRadius(s);
     return (
       <div
-        key={s}
+        key={`tiles-${s}`}
         className={`relative w-full ${pageMinHeight(s)} border bg-card p-4 ${borderRadius}`}
         onDragOver={(e) => {
           e.preventDefault();
