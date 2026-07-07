@@ -649,6 +649,18 @@ function DocEditor() {
             ))}
           </div>
         )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteSheet(s);
+          }}
+          className="absolute bottom-2 left-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/70 hover:text-destructive"
+          title="Delete page"
+          aria-label="Delete page"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
         <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60 select-none">
           {s + 1}
         </span>
