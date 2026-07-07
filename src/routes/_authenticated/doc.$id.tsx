@@ -364,7 +364,7 @@ function DocEditor() {
     setCaretPos(caret ?? lines[safeIdx].length);
   };
 
-  const renderSheet = (s: number) => {
+  const renderSheet = (s: number, colSpanClass?: string) => {
     const lines = sheetLines(s);
     const isActiveSheet = active.sheet === s;
     const safeActive = isActiveSheet ? Math.min(active.line, lines.length - 1) : -1;
@@ -487,7 +487,7 @@ function DocEditor() {
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius} ${colSpanClass ?? ""}`}
         onMouseDown={(e) => {
           // Clear any prior cross-line selection when starting a new click
           const sel = window.getSelection();
@@ -555,13 +555,13 @@ function DocEditor() {
     setSheets(next);
   };
 
-  const renderTiles = (s: number) => {
+  const renderTiles = (s: number, colSpanClass?: string) => {
     const paragraphs = splitParagraphs(sheets[s] ?? "");
     const borderRadius = pageBorderRadius(s);
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
+        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius} ${colSpanClass ?? ""}`}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
@@ -717,13 +717,14 @@ function DocEditor() {
 
           <main
             ref={mainRef}
-            className={`min-w-0 ${isGridLayout ? "grid grid-cols-2 gap-[4px]" : "flex flex-col gap-[4px]"} ${
+            className={`min-w-0 ${isGridLayout ? "grid grid-cols-4 gap-[4px]" : "flex flex-col gap-[4px]"} ${
               tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
           >
-            {sheets.slice(0, visiblePageCount).map((_, s) =>
-              view === "document" ? renderSheet(s) : renderTiles(s),
-            )}
+            {sheets.slice(0, visiblePageCount).map((_, s) => {
+              const colSpanClass = s === 0 ? "col-span-3" : s === 1 ? "col-span-1" : "col-span-2";
+              return view === "document" ? renderSheet(s, colSpanClass) : renderTiles(s, colSpanClass);
+            })}
           </main>
         </div>
       </div>
