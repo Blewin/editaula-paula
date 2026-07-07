@@ -244,6 +244,17 @@ function DocEditor() {
     setCaretPos(0);
   };
 
+  const deleteSheet = (s: number) => {
+    if (!window.confirm(`Delete page ${s + 1}? This cannot be undone.`)) return;
+    const next = sheets.filter((_, i) => i !== s);
+    if (next.length === 0) next.push("");
+    setSheets(next);
+    const newActiveSheet = Math.min(active.sheet, next.length - 1);
+    setActive({ sheet: newActiveSheet, line: 0 });
+    setCaretPos(0);
+  };
+
+
   const cyclePageLayout = () => {
     const nextLayout: PageLayout = pageLayout === "verticalAll" ? "grid" : "verticalAll";
     if (nextLayout === "grid") {
