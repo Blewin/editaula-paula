@@ -1,38 +1,43 @@
-## Bring back rich tile previews on Home
+# Google login + cloud-synced data
 
-Restore the look from the screenshot: document tiles show a preview of the first page's content, and folder tiles show a colored gradient cover. These live only in Editaula — nothing extra is written to disk beyond what's already there.
+## 1. Enable Lovable Cloud + Google sign-in
+- Enable Lovable Cloud (provisions auth + DB).
+- Configure Google as a social auth provider.
+- Gate the app behind login:
+  - Move `src/routes/index.tsx` and `src/routes/doc.$id.tsx` under `src/routes/_authenticated/` (the managed layout redirects unauthenticated users to `/auth`).
+  - Add a small `/auth` page with a single "Continue with Google" button using the Lovable broker (`lovable.auth.signInWithOAuth("google", ...)`).
+- Add a user menu (avatar + name from Google) in the home header with a "Sign out" action that clears the query cache and navigates to `/auth`.
 
-### Doc tiles: first-page preview
+## 2. Database schema (per-user)
+Three tables, all RLS-scoped to `auth.uid()`:
 
-- In `Tile` (src/routes/index.tsx), when `item.type === "doc"`, render a taller card with:
-  - Header row: file icon + doc name + `…` menu (matches screenshot).
-  - Body: a text preview of the first page.
-- Preview source: read the first non-empty page of the doc's first tab from disk via a new lightweight helper in `src/lib/storage.ts` (e.g. `readDocPreview(docId, maxChars = 400)`) that:
-  - Opens the doc folder, finds `<firstTab> - Page 1.md` (falling back to the lowest-indexed existing page), reads up to N chars, strips markdown noise minimally (leading `#`, list bullets).
-  - Returns `""` if nothing exists yet.
-- Loading model: `Tile` calls the helper in a `useEffect` and caches the result in local state. Re-run when `item.updatedAt` changes so edits refresh the preview. Cheap because it only runs for tiles currently rendered, and results are memoized per tile.
-- Styling: monospace-ish body text, `line-clamp` to fit, muted color, first line rendered slightly bolder to mimic the "title line" in the screenshot.
+- `items` — replaces today's `Item` type
+  - `id uuid pk`, `user_id uuid references auth.users on delete cascade`
+  - `type text check (type in ('doc','folder'))`
+  - `name text`, `parent_id uuid null references items(id) on delete cascade`
+  - `content text` (docs only), `color text` (folders only)
+  - `starred bool default false`, `position int`, `updated_at timestamptz default now()`
+- `views` — `id`, `user_id`, `name`, `created_at`
+- `view_items` — `view_id`, `item_id`, `position` (composite PK)
 
-### Folder tiles: gradient cover
+Standard grants (`authenticated` + `service_role`), RLS enabled, policies: users can CRUD only rows where `user_id = auth.uid()` (and for `view_items`, only when the parent view belongs to them).
 
-- When `item.type === "folder"`, render:
-  - Header row: folder icon (tinted with `folder.color`) + name + `…` menu.
-  - Body: a gradient block filling the rest of the tile.
-- Gradient derived from the folder's existing `color` field (already in the model, already color-pickable). Use `linear-gradient(135deg, color, mix-to-muted)` via `color-mix(in oklab, var(--muted) 60%, <color>)` so it looks like the soft dual-tone gradient in the screenshot. No new persisted data.
-- Folders without a color fall back to a neutral slate→muted gradient.
+## 3. Replace `src/lib/storage.ts`
+Rewrite the module to talk to Supabase instead of `localStorage`, keeping the same exported API surface so routes don't need rewrites:
+- `useItems()`, `useViews()` → TanStack Query hooks (`useQuery`) subscribed to the current user.
+- `createDoc/createFolder/updateItem/deleteItem/reorderItem` → Supabase mutations + `queryClient.invalidateQueries`.
+- `getItem`, `getBreadcrumb` → async; doc route already loads via state, will be adapted.
+- View functions (`createView/updateView/deleteView/addItemToView/removeItemFromView`) → Supabase.
+- `FOLDER_COLORS` constant stays as-is.
 
-### Layout adjustments
+No automatic migration from localStorage — users start fresh in the cloud (their previous local data remains in the browser but is not shown).
 
-- Increase tile min size in the grid (e.g. `minmax(240px, 1fr)`) and change aspect to something taller (e.g. `aspect-[4/5]`) so previews have room, matching the screenshot proportions.
-- Keep drag/drop, rename-in-place, star badge, and the `…` action menu working exactly as today; only the visual composition of the tile changes.
-- Empty state, starred view, and custom views reuse the same `Tile` — no route logic changes.
+## 4. Route adjustments
+- `doc.$id.tsx`: load doc via `useQuery`, save via mutation (debounced as today).
+- `index.tsx`: same UI; data comes from the new hooks.
+- Back-button "fromView/fromFolder" behavior preserved.
 
-### Out of scope
-
-- No disk format changes, no new sidecar fields.
-- Doc route, storage APIs for read/write pages, views, and folder gating are untouched.
-
-### Files touched
-
-- `src/lib/storage.ts` — add `readDocPreview` helper (read-only; uses existing root handle + walker knowledge).
-- `src/routes/index.tsx` — restructure `Tile` rendering for docs vs folders, bump grid sizing.
+## Technical notes
+- All DB writes happen client-side via the browser Supabase client; RLS enforces ownership (no server functions needed).
+- Realtime sync across tabs/devices: subscribe to `items` and `views` changes for the current user and invalidate queries.
+- No profiles table (per your answer — Google name/avatar read from the auth session).

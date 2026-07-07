@@ -1,38 +1,51 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus } from "lucide-react";
-import {
-  getItem,
-  updateItem,
-  useItems,
-  useRootStatus,
-  readDoc,
-  writeDocPage,
-  renameDocTab,
-  setDocTabs,
-  sanitizeTabName,
-  type Item,
-  type DocTab,
-} from "@/lib/storage";
+import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
+import { renderLine } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
-import { SheetEditor } from "@/components/SheetEditor";
-import { FolderGate } from "@/components/FolderGate";
 
 type DocSearch = { view?: string; folder?: string };
 
-export const Route = createFileRoute("/doc/$id")({
+export const Route = createFileRoute("/_authenticated/doc/$id")({
   validateSearch: (s: Record<string, unknown>): DocSearch => ({
     view: typeof s.view === "string" ? s.view : undefined,
     folder: typeof s.folder === "string" ? s.folder : undefined,
   }),
-  component: () => (
-    <FolderGate>
-      <DocEditor />
-    </FolderGate>
-  ),
+  component: DocEditor,
 });
 
+const SEP = "\u0001___SHEET_BREAK___\u0001";
+const TABS_MARKER = "\u0001___TABS_V1___\u0001\n";
+
+type Tab = { name: string; content: string };
 type PageLayout = "grid4" | "grid6" | "verticalAll";
+
+function parseTabs(content: string): Tab[] {
+  if (content.startsWith(TABS_MARKER)) {
+    try {
+      const data = JSON.parse(content.slice(TABS_MARKER.length));
+      if (Array.isArray(data) && data.length > 0) return data as Tab[];
+    } catch {
+      // fall through
+    }
+  }
+  return [{ name: "Tab 1", content }];
+}
+
+function serializeTabs(tabs: Tab[]): string {
+  return TABS_MARKER + JSON.stringify(tabs);
+}
+
+function splitSheets(content: string): string[] {
+  const parts = content.split("\n" + SEP + "\n");
+  while (parts.length < 2) parts.push("");
+  return parts;
+}
+
+function joinSheets(sheets: string[]): string {
+  return sheets.join("\n" + SEP + "\n");
+}
 
 function TabItem({
   name,
@@ -128,161 +141,97 @@ function Grid4Icon({ className }: { className?: string }) {
   );
 }
 
-function persistedKey(tab: string, idx: number): string {
-  return `${tab}\u0000${idx}`;
-}
-
 function DocEditor() {
   const { id } = Route.useParams();
   const { view: fromView, folder: fromFolder } = Route.useSearch();
   const navigate = useNavigate();
-  const status = useRootStatus();
   useItems(); // subscribe for reactivity
   const doc = getItem(id);
 
   const [name, setName] = React.useState(doc?.name ?? "");
-  const [tabs, setTabs] = React.useState<DocTab[]>([{ name: "Tab 1", pages: [] }]);
+  const initialTabs = React.useMemo(
+    () => (doc && doc.type === "doc" ? parseTabs(doc.content) : [{ name: "Tab 1", content: "" }]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id],
+  );
+  const [tabs, setTabs] = React.useState<Tab[]>(initialTabs);
   const [activeTab, setActiveTab] = React.useState(0);
-  const [sheets, setSheets] = React.useState<string[]>([""]);
-  const [activeSheet, setActiveSheet] = React.useState(0);
+  const [sheets, setSheets] = React.useState<string[]>(splitSheets(initialTabs[0].content));
+  const [active, setActive] = React.useState<{ sheet: number; line: number }>({
+    sheet: 0,
+    line: 0,
+  });
+  const [caretPos, setCaretPos] = React.useState<number | null>(null);
   const [view, setView] = React.useState<"document" | "tiles">("document");
   const [pageLayout, setPageLayout] = React.useState<PageLayout>("verticalAll");
-  const [loading, setLoading] = React.useState(true);
+  const inputRef = React.useRef<HTMLDivElement>(null);
   const mainRef = React.useRef<HTMLElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
 
-  // Snapshot of what's been persisted to disk per (tab, pageIndex).
-  const persistedRef = React.useRef<Map<string, string>>(new Map());
-
   React.useEffect(() => {
-    if (doc) setName(doc.name);
-  }, [doc?.id, doc?.name]);
-
-  // Load doc data when id changes.
-  React.useEffect(() => {
-    if (status !== "ready" || !doc || doc.type !== "doc") return;
-    let cancelled = false;
-    setLoading(true);
-    void readDoc(id).then((data) => {
-      if (cancelled) return;
-      const loaded = data.tabs.length > 0 ? data.tabs : [{ name: "Tab 1", pages: [] }];
-      setTabs(loaded);
-      setActiveTab(0);
-      const firstPages = loaded[0].pages.length > 0 ? loaded[0].pages : [""];
-      setSheets(firstPages);
-      setActiveSheet(0);
-      const map = new Map<string, string>();
-      for (const t of loaded) {
-        for (let i = 0; i < t.pages.length; i++) {
-          map.set(persistedKey(t.name, i), t.pages[i]);
-        }
+    if (doc) {
+      setName(doc.name);
+      if (doc.type === "doc") {
+        const t = parseTabs(doc.content);
+        setTabs(t);
+        setActiveTab(0);
+        setSheets(splitSheets(t[0].content));
       }
-      persistedRef.current = map;
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, status, doc?.id]);
+  }, [id]);
 
-  // Debounced per-page persistence.
+  const tabsWithCurrent = React.useMemo(() => {
+    const next = [...tabs];
+    if (next[activeTab]) {
+      next[activeTab] = { ...next[activeTab], content: joinSheets(sheets) };
+    }
+    return next;
+  }, [tabs, activeTab, sheets]);
+
   React.useEffect(() => {
-    if (loading) return;
     if (!doc || doc.type !== "doc") return;
     const t = setTimeout(() => {
-      const currentTabs = tabs.map((tab, i) =>
-        i === activeTab ? { ...tab, pages: sheets } : tab,
-      );
-      for (const tab of currentTabs) {
-        for (let i = 0; i < tab.pages.length; i++) {
-          const key = persistedKey(tab.name, i);
-          const content = tab.pages[i];
-          if (persistedRef.current.get(key) !== content) {
-            persistedRef.current.set(key, content);
-            void writeDocPage(id, tab.name, i, content);
-          }
-        }
+      const content = serializeTabs(tabsWithCurrent);
+      if (name !== doc.name || content !== doc.content) {
+        updateItem(id, { name, content } as Partial<Item>);
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [sheets, tabs, activeTab, id, loading, doc]);
-
-  // Persist doc name change (folder rename) — debounced.
-  React.useEffect(() => {
-    if (loading) return;
-    if (!doc || doc.type !== "doc") return;
-    const t = setTimeout(() => {
-      if (name !== doc.name && name.trim()) {
-        const newId = updateItem(id, { name } as Partial<Item>);
-        if (newId !== id) {
-          navigate({
-            to: "/doc/$id",
-            params: { id: newId },
-            search: { view: fromView, folder: fromFolder },
-            replace: true,
-          });
-        }
-      }
-    }, 400);
-    return () => clearTimeout(t);
-  }, [name, id, doc, loading, navigate, fromView, fromFolder]);
-
-  const commitSheetsIntoTabs = (nextTabs: DocTab[]): DocTab[] => {
-    const copy = [...nextTabs];
-    if (copy[activeTab]) copy[activeTab] = { ...copy[activeTab], pages: sheets };
-    return copy;
-  };
+  }, [name, tabsWithCurrent, id, doc]);
 
   const switchTab = (idx: number) => {
     if (idx === activeTab) return;
-    const committed = commitSheetsIntoTabs(tabs);
+    const committed = [...tabs];
+    if (committed[activeTab]) {
+      committed[activeTab] = { ...committed[activeTab], content: joinSheets(sheets) };
+    }
     setTabs(committed);
     setActiveTab(idx);
-    const pages = committed[idx]?.pages ?? [];
-    setSheets(pages.length > 0 ? pages : [""]);
-    setActiveSheet(0);
+    setSheets(splitSheets(committed[idx]?.content ?? ""));
+    setActive({ sheet: 0, line: 0 });
+    setCaretPos(0);
   };
 
   const addTab = () => {
-    const committed = commitSheetsIntoTabs(tabs);
-    // Find a unique new tab name.
-    const existing = new Set(committed.map((t) => t.name));
-    let n = committed.length + 1;
-    let candidate = `Tab ${n}`;
-    while (existing.has(candidate)) {
-      n += 1;
-      candidate = `Tab ${n}`;
+    const committed = [...tabs];
+    if (committed[activeTab]) {
+      committed[activeTab] = { ...committed[activeTab], content: joinSheets(sheets) };
     }
-    const next: DocTab[] = [...committed, { name: candidate, pages: [] }];
+    const newTab: Tab = { name: `Tab ${committed.length + 1}`, content: "" };
+    const next = [...committed, newTab];
     setTabs(next);
     setActiveTab(next.length - 1);
-    setSheets([""]);
-    setActiveSheet(0);
-    void setDocTabs(id, next.map((t) => t.name));
+    setSheets(splitSheets(""));
+    setActive({ sheet: 0, line: 0 });
+    setCaretPos(0);
   };
 
   const renameTab = (idx: number, newName: string) => {
-    const cleaned = sanitizeTabName(newName);
-    if (!cleaned) return;
-    const cur = tabs[idx];
-    if (!cur || cleaned === cur.name) return;
-    if (tabs.some((t, i) => i !== idx && t.name === cleaned)) return;
-    const oldName = cur.name;
-    // Update local state immediately.
-    const next = tabs.map((t, i) => (i === idx ? { ...t, name: cleaned } : t));
+    const next = [...tabs];
+    if (!next[idx]) return;
+    next[idx] = { ...next[idx], name: newName };
     setTabs(next);
-    // Remap persisted snapshot keys.
-    const newMap = new Map<string, string>();
-    for (const [k, v] of persistedRef.current) {
-      if (k.startsWith(oldName + "\u0000")) {
-        newMap.set(cleaned + k.slice(oldName.length), v);
-      } else {
-        newMap.set(k, v);
-      }
-    }
-    persistedRef.current = newMap;
-    void renameDocTab(id, oldName, cleaned);
   };
 
   const cyclePageLayout = () => {
@@ -326,13 +275,54 @@ function DocEditor() {
     return "rounded-none";
   };
 
-  if (status !== "ready") {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
-        Loading…
-      </div>
-    );
-  }
+  // Caret helpers for contentEditable line
+  const setCaretInEl = (el: HTMLElement, offset: number) => {
+    const sel = window.getSelection();
+    if (!sel) return;
+    const range = document.createRange();
+    const first = el.firstChild;
+    if (first && first.nodeType === 3) {
+      const len = first.textContent?.length ?? 0;
+      range.setStart(first, Math.max(0, Math.min(offset, len)));
+    } else {
+      range.setStart(el, 0);
+    }
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  const getCaretInEl = (el: HTMLElement): number => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return (el.textContent ?? "").length;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.endContainer)) return (el.textContent ?? "").length;
+    const pre = range.cloneRange();
+    pre.selectNodeContents(el);
+    pre.setEnd(range.endContainer, range.endOffset);
+    return pre.toString().length;
+  };
+
+  // Sync active line DOM content with model
+  React.useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const sheetContent = sheets[active.sheet] ?? "";
+    const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
+    const target = linesArr[active.line] ?? "";
+    if (el.textContent !== target) el.textContent = target;
+  }, [active, sheets]);
+
+  // Focus active line and place caret
+  React.useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    if (document.activeElement !== el) el.focus();
+    if (caretPos !== null) {
+      setCaretInEl(el, caretPos);
+      setCaretPos(null);
+    }
+  }, [active, caretPos]);
 
   if (!doc || doc.type !== "doc") {
     return (
@@ -345,47 +335,202 @@ function DocEditor() {
     );
   }
 
-  const writeSheet = (s: number, next: string) => {
-    setSheets((cur) => {
-      if ((cur[s] ?? "") === next) return cur;
-      const copy = [...cur];
-      while (copy.length <= s) copy.push("");
-      copy[s] = next;
-      return copy;
-    });
+  const sheetLines = (s: number): string[] => {
+    const c = sheets[s] ?? "";
+    return c.length === 0 ? [""] : c.split("\n");
   };
 
-  const selectAllAcrossSheets = (): boolean => {
-    if (!mainRef.current) return false;
-    (document.activeElement as HTMLElement | null)?.blur();
-    const range = document.createRange();
-    range.selectNodeContents(mainRef.current);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-    return true;
+  const writeSheet = (s: number, nextLines: string[]) => {
+    const next = [...sheets];
+    next[s] = nextLines.join("\n");
+    setSheets(next);
+  };
+
+  const setLinesAndActive = (
+    s: number,
+    nextLines: string[],
+    newLine: number,
+    newCaret: number | null = null,
+  ) => {
+    writeSheet(s, nextLines);
+    setActive({ sheet: s, line: newLine });
+    if (newCaret !== null) setCaretPos(newCaret);
+  };
+
+  const focusLine = (s: number, idx: number, caret: number | null = null) => {
+    const lines = sheetLines(s);
+    const safeIdx = Math.max(0, Math.min(idx, lines.length - 1));
+    setActive({ sheet: s, line: safeIdx });
+    setCaretPos(caret ?? lines[safeIdx].length);
   };
 
   const renderSheet = (s: number) => {
+    const lines = sheetLines(s);
+    const isActiveSheet = active.sheet === s;
+    const safeActive = isActiveSheet ? Math.min(active.line, lines.length - 1) : -1;
+
+    const onLineChange = (val: string) => {
+      if (val.includes("\n")) {
+        const parts = val.split("\n");
+        const next = [...lines];
+        next.splice(safeActive, 1, ...parts);
+        setLinesAndActive(s, next, safeActive + parts.length - 1, parts[parts.length - 1].length);
+        return;
+      }
+      const next = [...lines];
+      next[safeActive] = val;
+      writeSheet(s, next);
+    };
+
+    const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const val = el.textContent ?? "";
+      const pos = getCaretInEl(el);
+
+      // Select all across current tab's pages
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a" && !e.shiftKey && !e.altKey) {
+        if (mainRef.current) {
+          e.preventDefault();
+          (document.activeElement as HTMLElement | null)?.blur();
+          const range = document.createRange();
+          range.selectNodeContents(mainRef.current);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+        return;
+      }
+
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const before = val.slice(0, pos);
+        const after = val.slice(pos);
+        const next = [...lines];
+        next.splice(safeActive, 1, before, after);
+        setLinesAndActive(s, next, safeActive + 1, 0);
+        return;
+      }
+      if (e.key === "Backspace" && pos === 0 && safeActive > 0) {
+        e.preventDefault();
+        const prev = lines[safeActive - 1];
+        const next = [...lines];
+        next.splice(safeActive - 1, 2, prev + val);
+        setLinesAndActive(s, next, safeActive - 1, prev.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        if (safeActive > 0) {
+          e.preventDefault();
+          setCaretPos(Math.min(pos, lines[safeActive - 1].length));
+          setActive({ sheet: s, line: safeActive - 1 });
+        } else if (s > 0) {
+          e.preventDefault();
+          const prev = sheetLines(s - 1);
+          setCaretPos(Math.min(pos, prev[prev.length - 1].length));
+          setActive({ sheet: s - 1, line: prev.length - 1 });
+        }
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        if (safeActive < lines.length - 1) {
+          e.preventDefault();
+          setCaretPos(Math.min(pos, lines[safeActive + 1].length));
+          setActive({ sheet: s, line: safeActive + 1 });
+        } else if (s < sheets.length - 1) {
+          e.preventDefault();
+          const nextLines = sheetLines(s + 1);
+          setCaretPos(Math.min(pos, nextLines[0].length));
+          setActive({ sheet: s + 1, line: 0 });
+        }
+        return;
+      }
+      if (e.key === "ArrowLeft" && pos === 0) {
+        if (safeActive > 0) {
+          e.preventDefault();
+          setCaretPos(lines[safeActive - 1].length);
+          setActive({ sheet: s, line: safeActive - 1 });
+        } else if (s > 0) {
+          e.preventDefault();
+          const prev = sheetLines(s - 1);
+          setCaretPos(prev[prev.length - 1].length);
+          setActive({ sheet: s - 1, line: prev.length - 1 });
+        }
+        return;
+      }
+      if (e.key === "ArrowRight" && pos === val.length) {
+        if (safeActive < lines.length - 1) {
+          e.preventDefault();
+          setCaretPos(0);
+          setActive({ sheet: s, line: safeActive + 1 });
+        } else if (s < sheets.length - 1) {
+          e.preventDefault();
+          setCaretPos(0);
+          setActive({ sheet: s + 1, line: 0 });
+        }
+        return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const before = val.slice(0, pos);
+        const after = val.slice(pos);
+        const next = [...lines];
+        next[safeActive] = before + "\t" + after;
+        writeSheet(s, next);
+        setCaretPos(pos + 1);
+        setActive({ sheet: s, line: safeActive });
+        return;
+      }
+    };
+
     const borderRadius = pageBorderRadius(s);
+
     return (
       <div
         key={s}
         className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
+        onMouseDown={(e) => {
+          // Clear any prior cross-line selection when starting a new click
+          const sel = window.getSelection();
+          if (sel && !sel.isCollapsed) sel.removeAllRanges();
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+            focusLine(s, lines.length - 1);
+          }
+        }}
       >
-        <SheetEditor
-          value={sheets[s] ?? ""}
-          onChange={(v) => writeSheet(s, v)}
-          onFocus={() => setActiveSheet(s)}
-          onSelectAll={selectAllAcrossSheets}
-          className="min-h-[calc(50vh-8rem)]"
-        />
+        {lines.map((line, i) =>
+          isActiveSheet && i === safeActive ? (
+            <div
+              key={i}
+              ref={inputRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
+              onKeyDown={onKeyDown}
+              className="block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem]"
+              spellCheck={false}
+            />
+          ) : (
+            <div
+              key={i}
+              onClick={() => {
+                const sel = window.getSelection();
+                if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
+                focusLine(s, i);
+              }}
+              className="my-0 cursor-text min-h-[1.25rem]"
+              dangerouslySetInnerHTML={{ __html: renderLine(line) }}
+            />
+          ),
+        )}
         <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60 select-none">
           {s + 1}
         </span>
       </div>
+
     );
   };
+
 
   const splitParagraphs = (s: string): string[] => {
     return s.split("\n").filter((p) => p.trim().length > 0);
@@ -556,6 +701,7 @@ function DocEditor() {
                 New tab
               </Button>
               <nav className="flex flex-col gap-1.5">
+
                 {tabs.map((t, i) => (
                   <TabItem
                     key={i}
@@ -575,12 +721,13 @@ function DocEditor() {
               tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
             }`}
           >
-            {Array.from({ length: visiblePageCount }, (_, s) =>
+            {sheets.slice(0, visiblePageCount).map((_, s) =>
               view === "document" ? renderSheet(s) : renderTiles(s),
             )}
           </main>
         </div>
       </div>
+
     </div>
   );
 }
