@@ -567,7 +567,7 @@ function DocEditor() {
     return (
       <div
         key={s}
-        className={`relative w-full min-h-[calc(50vh-6rem)] border bg-card p-4 ${borderRadius}`}
+        className={`relative w-full ${pageMinHeight(s)} border bg-card p-4 ${borderRadius}`}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
