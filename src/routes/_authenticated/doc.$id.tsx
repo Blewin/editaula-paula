@@ -234,6 +234,13 @@ function DocEditor() {
     setTabs(next);
   };
 
+  const addSheet = () => {
+    const next = [...sheets, ""];
+    setSheets(next);
+    setActive({ sheet: next.length - 1, line: 0 });
+    setCaretPos(0);
+  };
+
   const cyclePageLayout = () => {
     const nextLayout: PageLayout =
       pageLayout === "verticalAll"
