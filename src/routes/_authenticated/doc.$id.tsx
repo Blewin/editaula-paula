@@ -258,8 +258,6 @@ function DocEditor() {
   };
 
   const isGridLayout = pageLayout === "grid4" || pageLayout === "grid6";
-  const lastWrittenSheet = sheets.reduce((last, sheet, index) =>
-    sheet.trim().length > 0 ? index : last, -1);
   const visiblePageCount =
     pageLayout === "grid4"
       ? 4
