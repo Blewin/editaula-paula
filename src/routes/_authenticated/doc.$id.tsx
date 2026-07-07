@@ -504,7 +504,7 @@ function DocEditor() {
     return (
       <div
         key={s}
-        className={`group relative w-full ${pageMinHeight(s)} border bg-card p-4 ${borderRadius}`}
+        className={`relative w-full ${pageMinHeight(s)} border bg-card p-4 ${borderRadius}`}
         onMouseDown={(e) => {
           // Clear any prior cross-line selection when starting a new click
           const sel = window.getSelection();
@@ -540,19 +540,23 @@ function DocEditor() {
             />
           ),
         )}
-        <button
-          type="button"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteSheet(s);
-          }}
-          className="absolute bottom-2 left-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/70 hover:text-destructive"
+        <div
+          className="absolute bottom-2 left-3 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
           title="Delete page"
           aria-label="Delete page"
         >
-          <Trash2 className="h-4 w-4" />
-        </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteSheet(s);
+            }}
+            className="text-muted-foreground/70 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
         <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60 select-none">
           {s + 1}
         </span>
@@ -591,7 +595,7 @@ function DocEditor() {
     return (
       <div
         key={s}
-        className={`group relative w-full ${pageMinHeight(s)} border bg-card p-4 ${borderRadius}`}
+        className={`relative w-full ${pageMinHeight(s)} border bg-card p-4 ${borderRadius}`}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
@@ -649,18 +653,22 @@ function DocEditor() {
             ))}
           </div>
         )}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteSheet(s);
-          }}
-          className="absolute bottom-2 left-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/70 hover:text-destructive"
+        <div
+          className="absolute bottom-2 left-3 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
           title="Delete page"
           aria-label="Delete page"
         >
-          <Trash2 className="h-4 w-4" />
-        </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteSheet(s);
+            }}
+            className="text-muted-foreground/70 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
         <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60 select-none">
           {s + 1}
         </span>
