@@ -266,7 +266,7 @@ function DocEditor() {
       : pageLayout === "grid6"
         ? 6
         : pageLayout === "verticalAll"
-          ? Math.max(2, lastWrittenSheet + 1)
+          ? Math.max(2, sheets.length)
           : 2;
 
   const pageBorderRadius = (s: number) => {
