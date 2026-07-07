@@ -314,7 +314,10 @@ function DocEditor() {
     return pre.toString().length;
   };
 
-  // Sync active line DOM content with model
+  // Sync active line DOM content with model. Include `view` so we re-sync
+  // after switching back from tiles view (the contentEditable div is a fresh
+  // node then, and without this it would render empty until the next state
+  // change caused it to look like a page vanished).
   React.useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -322,10 +325,11 @@ function DocEditor() {
     const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
     const target = linesArr[active.line] ?? "";
     if (el.textContent !== target) el.textContent = target;
-  }, [active, sheets]);
+  }, [active, sheets, view]);
 
   // Focus active line and place caret
   React.useEffect(() => {
+    if (view !== "document") return;
     const el = inputRef.current;
     if (!el) return;
     if (document.activeElement !== el) el.focus();
@@ -333,7 +337,7 @@ function DocEditor() {
       setCaretInEl(el, caretPos);
       setCaretPos(null);
     }
-  }, [active, caretPos]);
+  }, [active, caretPos, view]);
 
   if (!doc || doc.type !== "doc") {
     return (
