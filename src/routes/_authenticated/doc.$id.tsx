@@ -249,8 +249,8 @@ function DocEditor() {
     const next = sheets.filter((_, i) => i !== s);
     if (next.length === 0) next.push("");
     setSheets(next);
-    const newActiveSheet = Math.min(active.sheet, next.length - 1);
-    setActive({ sheet: newActiveSheet, line: 0 });
+    const newActiveSheet = active.sheet >= 0 ? Math.min(active.sheet, next.length - 1) : -1;
+    setActive({ sheet: newActiveSheet, line: newActiveSheet >= 0 ? 0 : -1 });
     setCaretPos(0);
   };
 
@@ -319,7 +319,7 @@ function DocEditor() {
   // effects wait to run after a view switch.
   React.useEffect(() => {
     const el = inputRef.current;
-    if (!el) return;
+    if (!el || active.sheet < 0 || active.line < 0) return;
     const sheetContent = sheets[active.sheet] ?? "";
     const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
     const target = linesArr[active.line] ?? "";
@@ -329,6 +329,7 @@ function DocEditor() {
   // Focus active line and place caret
   React.useEffect(() => {
     if (view !== "document") return;
+    if (active.sheet < 0 || active.line < 0) return;
     const el = inputRef.current;
     if (!el) return;
     if (document.activeElement !== el) el.focus();
@@ -522,7 +523,10 @@ function DocEditor() {
           isActiveSheet && i === safeActive ? (
             <div
               key={i}
-              ref={inputRef}
+              ref={(el) => {
+                inputRef.current = el;
+                if (el && el.textContent !== line) el.textContent = line;
+              }}
               contentEditable
               suppressContentEditableWarning
               onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
@@ -712,7 +716,12 @@ function DocEditor() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setView(view === "document" ? "tiles" : "document")}
+            onClick={() => {
+              inputRef.current?.blur();
+              setActive({ sheet: -1, line: -1 });
+              setCaretPos(null);
+              setView(view === "document" ? "tiles" : "document");
+            }}
             title={view === "document" ? "Switch to tiles view" : "Switch to document view"}
           >
             {view === "document" ? <AlignJustify /> : <FileText />}
