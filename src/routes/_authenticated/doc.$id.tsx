@@ -728,16 +728,25 @@ function DocEditor() {
             </aside>
           )}
 
-          <main
-            ref={mainRef}
-            className={`min-w-0 ${isGridLayout ? "grid grid-cols-2 gap-[4px]" : "flex flex-col gap-[4px]"} ${
-              tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"
-            }`}
+          <div
+            className={`min-w-0 ${tabsVisible ? "flex-1" : "mx-auto w-full max-w-[calc(48rem-3rem)]"}`}
           >
-            {sheets.slice(0, visiblePageCount).map((_, s) =>
-              view === "document" ? renderSheet(s) : renderTiles(s),
-            )}
-          </main>
+            <main
+              ref={mainRef}
+              className={`w-full ${isGridLayout ? "grid grid-cols-2 gap-[4px]" : "flex flex-col gap-[4px]"}`}
+            >
+              {sheets.slice(0, visiblePageCount).map((_, s) =>
+                view === "document" ? renderSheet(s) : renderTiles(s),
+              )}
+            </main>
+            <button
+              onClick={addSheet}
+              className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card py-4 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              New page
+            </button>
+          </div>
         </div>
       </div>
 
