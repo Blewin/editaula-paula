@@ -314,15 +314,15 @@ function DocEditor() {
     return pre.toString().length;
   };
 
-  // Keep the editable line aligned with the model after programmatic changes.
-  // The line text is also rendered directly below so it is never blank while
-  // effects wait to run after a view switch.
+  // Keep the editable line aligned after programmatic changes without touching
+  // the focused editor on every keystroke, which would reset the caret.
   React.useEffect(() => {
     const el = inputRef.current;
     if (!el || active.sheet < 0 || active.line < 0) return;
     const sheetContent = sheets[active.sheet] ?? "";
     const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
     const target = linesArr[active.line] ?? "";
+    if (document.activeElement === el) return;
     if (el.textContent !== target) el.textContent = target;
   }, [active, sheets, view]);
 
@@ -522,10 +522,15 @@ function DocEditor() {
         {lines.map((line, i) =>
           isActiveSheet && i === safeActive ? (
             <div
-              key={i}
+              key={`active-${s}-${i}`}
               ref={(el) => {
                 inputRef.current = el;
-                if (el && el.textContent !== line) el.textContent = line;
+                if (!el) return;
+                const lineKey = `${s}:${i}`;
+                if (el.dataset.lineKey !== lineKey) {
+                  el.textContent = line;
+                  el.dataset.lineKey = lineKey;
+                }
               }}
               contentEditable
               suppressContentEditableWarning
@@ -533,9 +538,7 @@ function DocEditor() {
               onKeyDown={onKeyDown}
               className="block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem]"
               spellCheck={false}
-            >
-              {line}
-            </div>
+            />
           ) : (
             <div
               key={i}
