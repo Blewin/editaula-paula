@@ -428,6 +428,13 @@ function DocEditor() {
     if (view !== "document") return;
     const onMove = (ev: MouseEvent) => {
       if (!dragging.current) return;
+      const start = downPoint.current;
+      if (
+        start &&
+        Math.abs(ev.clientX - start.x) + Math.abs(ev.clientY - start.y) > 3
+      ) {
+        dragMoved.current = true;
+      }
       const r = snappedCaretRangeAt(ev.clientX, ev.clientY);
       if (!r) return;
       const sel = window.getSelection();
@@ -439,11 +446,17 @@ function DocEditor() {
       }
     };
     const onUp = () => {
+      const moved = dragMoved.current;
       dragging.current = false;
+      dragMoved.current = false;
       if (!selMode) return;
 
       const sel = window.getSelection();
-      const hasSelection = !!sel && !sel.isCollapsed && sel.toString().length > 0;
+      const hasSelection =
+        moved && !!sel && !sel.isCollapsed && sel.toString().length > 0;
+      // A plain click (no drag) never keeps a selection: collapse it so the
+      // clicked line becomes editable again.
+      if (!hasSelection) sel?.removeAllRanges();
       if (hasSelection) return; // keep lines inert so the selection survives
       const pt = downPoint.current;
       downPoint.current = null;
