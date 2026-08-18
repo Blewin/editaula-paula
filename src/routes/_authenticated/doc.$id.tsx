@@ -64,6 +64,44 @@ function caretRangeAt(x: number, y: number): Range | null {
   return null;
 }
 
+// Like caretRangeAt, but if the point is in empty space (below the last line,
+// in a page's padding, etc.) it snaps to the nearest line so selections that
+// start or end under the text still include that text.
+function snappedCaretRangeAt(x: number, y: number): Range | null {
+  const raw = caretRangeAt(x, y);
+  const inLine = (r: Range | null) => {
+    const n = r?.startContainer ?? null;
+    const el = n && (n.nodeType === 1 ? (n as HTMLElement) : n.parentElement);
+    return !!el?.closest?.("[data-line-idx]");
+  };
+  if (raw && inLine(raw)) return raw;
+
+  const hit = document.elementFromPoint(x, y) as HTMLElement | null;
+  const sheetEl = hit?.closest?.("[data-sheet-idx]") as HTMLElement | null;
+  if (!sheetEl) return raw;
+  const lineEls = Array.from(
+    sheetEl.querySelectorAll<HTMLElement>("[data-line-idx]"),
+  );
+  if (lineEls.length === 0) return raw;
+
+  let best = lineEls[0];
+  let bestDist = Infinity;
+  for (const el of lineEls) {
+    const rect = el.getBoundingClientRect();
+    const dist = y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = el;
+    }
+  }
+  const rect = best.getBoundingClientRect();
+  const below = y > rect.bottom || (bestDist === 0 && x > rect.right);
+  const range = document.createRange();
+  range.selectNodeContents(best);
+  range.collapse(!below);
+  return range;
+}
+
 function TabItem({
   name,
   isActive,
@@ -368,7 +406,7 @@ function DocEditor() {
     if (view !== "document") return;
     const onMove = (ev: MouseEvent) => {
       if (!dragging.current) return;
-      const r = caretRangeAt(ev.clientX, ev.clientY);
+      const r = snappedCaretRangeAt(ev.clientX, ev.clientY);
       if (!r) return;
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) return;
@@ -389,7 +427,7 @@ function DocEditor() {
       downPoint.current = null;
       let target: { sheet: number; line: number; offset: number } | null = null;
       if (pt) {
-        const range = caretRangeAt(pt.x, pt.y);
+        const range = snappedCaretRangeAt(pt.x, pt.y);
         const node: Node | null = range?.startContainer ?? null;
         const el =
           node && (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement);
@@ -650,7 +688,7 @@ function DocEditor() {
       <div
         key={`document-${s}`}
         data-sheet-idx={s}
-        className={`relative w-full ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
+        className={`relative w-full cursor-text ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
         onMouseDown={(e) => {
           if (e.button !== 0) return;
           // Take over the gesture: make every line inert and drive the
@@ -659,7 +697,7 @@ function DocEditor() {
           downPoint.current = { x: e.clientX, y: e.clientY };
           dragging.current = true;
           setSelMode(true);
-          const r = caretRangeAt(e.clientX, e.clientY);
+          const r = snappedCaretRangeAt(e.clientX, e.clientY);
           const sel = window.getSelection();
           if (r && sel) {
             sel.removeAllRanges();
