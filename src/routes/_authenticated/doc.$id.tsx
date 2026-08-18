@@ -428,8 +428,12 @@ function DocEditor() {
         setCaretPos(target.offset);
       }
     };
+    document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-    return () => document.removeEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
   }, [selMode, view, sheets]);
 
   // A selection that leaves the focused line makes all lines inert so it holds.
