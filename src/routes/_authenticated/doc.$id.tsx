@@ -795,7 +795,7 @@ function DocEditor() {
     return (
       <div
         key={`tiles-${s}`}
-        className={`relative w-full cursor-text ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
+        className={`relative w-full ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
