@@ -513,7 +513,21 @@ function DocEditor() {
   React.useEffect(() => {
     const onSelChange = () => {
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || sel.toString().length === 0) return;
+      if (!sel || sel.isCollapsed || sel.toString().length === 0) {
+        // Nothing selected any more: never stay locked.
+        setSelMode(false);
+        return;
+      }
+      const main = mainRef.current;
+      if (
+        main &&
+        (!sel.anchorNode ||
+          !sel.focusNode ||
+          !main.contains(sel.anchorNode) ||
+          !main.contains(sel.focusNode))
+      ) {
+        return; // selection outside the editor: leave editing untouched
+      }
       const el = inputRef.current;
       if (
         el &&
@@ -529,6 +543,19 @@ function DocEditor() {
     document.addEventListener("selectionchange", onSelChange);
     return () => document.removeEventListener("selectionchange", onSelChange);
   }, []);
+
+  // Safety net: if lines are inert but nothing is selected (e.g. after a
+  // deletion cleared the selection), restore editing on the active line.
+  React.useEffect(() => {
+    if (!selMode) return;
+    const t = setTimeout(() => {
+      if (dragging.current) return;
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.toString().length === 0) setSelMode(false);
+    }, 120);
+    return () => clearTimeout(t);
+  }, [selMode, sheets, active]);
+
 
   // While a multi-line/multi-page selection is held, lines are inert, so
   // Backspace/Delete/typing must be applied to the model by hand.
