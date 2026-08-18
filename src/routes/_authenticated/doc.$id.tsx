@@ -47,6 +47,23 @@ function joinSheets(sheets: string[]): string {
   return sheets.join("\n" + SEP + "\n");
 }
 
+function caretRangeAt(x: number, y: number): Range | null {
+  const d = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+  };
+  if (typeof d.caretRangeFromPoint === "function") return d.caretRangeFromPoint(x, y);
+  if (typeof d.caretPositionFromPoint === "function") {
+    const pos = d.caretPositionFromPoint(x, y);
+    if (!pos) return null;
+    const r = document.createRange();
+    r.setStart(pos.offsetNode, pos.offset);
+    r.collapse(true);
+    return r;
+  }
+  return null;
+}
+
 function TabItem({
   name,
   isActive,
