@@ -854,7 +854,7 @@ function DocEditor() {
           </div>
         )}
         <div
-          className="absolute bottom-4 left-5 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
+          className="absolute bottom-6 left-6 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
           title="Delete page"
           aria-label="Delete page"
         >
@@ -869,7 +869,7 @@ function DocEditor() {
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
-        <span className="pointer-events-none absolute bottom-4 right-5 text-xs text-muted-foreground/60 select-none">
+        <span className="pointer-events-none absolute bottom-6 right-6 text-xs text-muted-foreground/60 select-none">
           {s + 1}
         </span>
       </div>
