@@ -404,12 +404,22 @@ function DocEditor() {
     return () => document.removeEventListener("mouseup", onUp);
   }, [selMode, view, sheets]);
 
-  // Clicking outside a selection re-enables editing.
+  // A selection that leaves the focused line makes all lines inert so it holds.
   React.useEffect(() => {
     const onSelChange = () => {
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) return;
-      if (sel.toString().length > 0) setSelMode(true);
+      if (!sel || sel.isCollapsed || sel.toString().length === 0) return;
+      const el = inputRef.current;
+      if (
+        el &&
+        sel.anchorNode &&
+        sel.focusNode &&
+        el.contains(sel.anchorNode) &&
+        el.contains(sel.focusNode)
+      ) {
+        return; // selection inside the active line: keep it editable
+      }
+      setSelMode(true);
     };
     document.addEventListener("selectionchange", onSelChange);
     return () => document.removeEventListener("selectionchange", onSelChange);
