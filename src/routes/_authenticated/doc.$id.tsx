@@ -167,6 +167,10 @@ function DocEditor() {
   const inputRef = React.useRef<HTMLDivElement>(null);
   const mainRef = React.useRef<HTMLElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
+  // While true, no line is editable so the browser can select freely across
+  // lines and pages (an editing host confines selection to itself).
+  const [selMode, setSelMode] = React.useState(false);
+  const downPoint = React.useRef<{ x: number; y: number } | null>(null);
 
   React.useEffect(() => {
     if (doc) {
