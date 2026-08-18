@@ -415,12 +415,33 @@ function DocEditor() {
     if (active.sheet < 0 || active.line < 0) return;
     const el = inputRef.current;
     if (!el) return;
-    if (document.activeElement !== el) el.focus();
+    // Re-focus even when this element is already activeElement: the window
+    // itself may have lost focus (e.g. the user clicked outside the preview),
+    // in which case keystrokes would not reach the editor.
+    if (document.activeElement !== el || !document.hasFocus()) {
+      if (!document.hasFocus()) window.focus();
+      el.focus({ preventScroll: true });
+    }
     if (caretPos !== null) {
       setCaretInEl(el, caretPos);
       setCaretPos(null);
     }
   }, [active, caretPos, view, selMode]);
+
+  // Coming back from another window/panel: put the caret back in the editor.
+  React.useEffect(() => {
+    if (view !== "document") return;
+    const onFocus = () => {
+      if (selMode || dragging.current) return;
+      const el = inputRef.current;
+      if (!el) return;
+      if (document.activeElement === document.body || document.activeElement === null) {
+        el.focus({ preventScroll: true });
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [view, selMode]);
 
   // A mouse gesture in the editor: everything is plain text while the button is
   // down and we drive the selection ourselves, so it can span lines and pages.
@@ -825,6 +846,9 @@ function DocEditor() {
           // Take over the gesture: make every line inert and drive the
           // selection ourselves so it can span lines and pages.
           e.preventDefault();
+          // preventDefault blocks the browser's own focus handling, so make
+          // sure this window/frame takes focus back when it lost it.
+          if (!document.hasFocus()) window.focus();
           downPoint.current = { x: e.clientX, y: e.clientY };
           dragging.current = true;
           setSelMode(true);
