@@ -428,6 +428,21 @@ function DocEditor() {
     }
   }, [active, caretPos, view, selMode]);
 
+  // Coming back from another window/panel: put the caret back in the editor.
+  React.useEffect(() => {
+    if (view !== "document") return;
+    const onFocus = () => {
+      if (selMode || dragging.current) return;
+      const el = inputRef.current;
+      if (!el) return;
+      if (document.activeElement === document.body || document.activeElement === null) {
+        el.focus({ preventScroll: true });
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [view, selMode]);
+
   // A mouse gesture in the editor: everything is plain text while the button is
   // down and we drive the selection ourselves, so it can span lines and pages.
   React.useEffect(() => {
