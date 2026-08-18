@@ -653,10 +653,20 @@ function DocEditor() {
         className={`relative w-full ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
         onMouseDown={(e) => {
           if (e.button !== 0) return;
+          // Take over the gesture: make every line inert and drive the
+          // selection ourselves so it can span lines and pages.
+          e.preventDefault();
           downPoint.current = { x: e.clientX, y: e.clientY };
-          // Make every line inert for the duration of the gesture so the
-          // browser can select across lines and pages.
+          dragging.current = true;
           setSelMode(true);
+          const r = caretRangeAt(e.clientX, e.clientY);
+          const sel = window.getSelection();
+          if (r && sel) {
+            sel.removeAllRanges();
+            sel.addRange(r);
+          } else {
+            sel?.removeAllRanges();
+          }
         }}
       >
         {lines.map((line, i) =>
