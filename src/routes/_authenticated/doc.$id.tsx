@@ -411,7 +411,7 @@ function DocEditor() {
   // Focus active line and place caret
   React.useEffect(() => {
     if (view !== "document") return;
-    if (selMode) return;
+    if (selMode || dragging.current) return;
     if (active.sheet < 0 || active.line < 0) return;
     const el = inputRef.current;
     if (!el) return;
@@ -514,8 +514,8 @@ function DocEditor() {
     const onSelChange = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.toString().length === 0) {
-        // Nothing selected any more: never stay locked.
-        setSelMode(false);
+        // Nothing selected any more: never stay locked (unless mid-drag).
+        if (!dragging.current) setSelMode(false);
         return;
       }
       const main = mainRef.current;
