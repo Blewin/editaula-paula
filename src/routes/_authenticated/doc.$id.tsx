@@ -516,6 +516,75 @@ function DocEditor() {
     return () => document.removeEventListener("selectionchange", onSelChange);
   }, []);
 
+  // While a multi-line/multi-page selection is held, lines are inert, so
+  // Backspace/Delete/typing must be applied to the model by hand.
+  React.useEffect(() => {
+    if (view !== "document") return;
+    const posOf = (node: Node | null, offset: number) => {
+      const el =
+        node && (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement);
+      const lineEl = el?.closest?.("[data-line-idx]") as HTMLElement | null;
+      if (!lineEl) return null;
+      const s = Number(lineEl.dataset.sheetIdx);
+      const l = Number(lineEl.dataset.lineIdx);
+      if (!Number.isFinite(s) || !Number.isFinite(l)) return null;
+      const pre = document.createRange();
+      pre.selectNodeContents(lineEl);
+      try {
+        pre.setEnd(node!, offset);
+      } catch {
+        // ignore
+      }
+      return { sheet: s, line: l, offset: pre.toString().length };
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (!selMode) return;
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+      const isDelete = e.key === "Backspace" || e.key === "Delete";
+      const isType =
+        !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1;
+      if (!isDelete && !isType) return;
+
+      const range = sel.getRangeAt(0);
+      const start = posOf(range.startContainer, range.startOffset);
+      const end = posOf(range.endContainer, range.endOffset);
+      if (!start || !end) return;
+      e.preventDefault();
+
+      const linesOf = (c: string) => (c.length === 0 ? [""] : c.split("\n"));
+      const next = [...sheets];
+      const startLines = linesOf(next[start.sheet] ?? "");
+      const endLines = linesOf(next[end.sheet] ?? "");
+      const head =
+        (startLines[start.line] ?? "").slice(0, start.offset) + (isType ? e.key : "");
+      const tail = (endLines[end.line] ?? "").slice(end.offset);
+
+      if (start.sheet === end.sheet) {
+        const merged = [
+          ...startLines.slice(0, start.line),
+          head + tail,
+          ...startLines.slice(end.line + 1),
+        ];
+        next[start.sheet] = merged.join("\n");
+      } else {
+        next[start.sheet] = [...startLines.slice(0, start.line), head].join("\n");
+        for (let i = start.sheet + 1; i < end.sheet; i++) next[i] = "";
+        next[end.sheet] = [tail, ...endLines.slice(end.line + 1)].join("\n");
+      }
+
+      sel.removeAllRanges();
+      setSheets(next);
+      setSelMode(false);
+      setActive({ sheet: start.sheet, line: start.line });
+      setCaretPos(head.length);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selMode, view, sheets]);
+
+
   // Cmd/Ctrl+A selects the whole tab, even when no line has focus.
   React.useEffect(() => {
     if (view !== "document") return;
