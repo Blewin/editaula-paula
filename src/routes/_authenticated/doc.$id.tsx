@@ -402,7 +402,7 @@ function DocEditor() {
     };
     document.addEventListener("mouseup", onUp);
     return () => document.removeEventListener("mouseup", onUp);
-  }, [selMode, view]);
+  }, [selMode, view, sheets]);
 
   // Clicking outside a selection re-enables editing.
   React.useEffect(() => {
@@ -414,6 +414,29 @@ function DocEditor() {
     document.addEventListener("selectionchange", onSelChange);
     return () => document.removeEventListener("selectionchange", onSelChange);
   }, []);
+
+  // Cmd/Ctrl+A selects the whole tab, even when no line has focus.
+  React.useEffect(() => {
+    if (view !== "document") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "a" || e.shiftKey || e.altKey)
+        return;
+      const el = mainRef.current;
+      if (!el) return;
+      const ae = document.activeElement;
+      if (ae && ae !== document.body && !el.contains(ae)) return;
+      e.preventDefault();
+      (ae as HTMLElement | null)?.blur?.();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      setSelMode(true);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [view]);
 
   if (!doc || doc.type !== "doc") {
     return (
