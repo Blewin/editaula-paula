@@ -171,6 +171,7 @@ function DocEditor() {
   // lines and pages (an editing host confines selection to itself).
   const [selMode, setSelMode] = React.useState(false);
   const downPoint = React.useRef<{ x: number; y: number } | null>(null);
+  const dragging = React.useRef(false);
 
   React.useEffect(() => {
     if (doc) {
