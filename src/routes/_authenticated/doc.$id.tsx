@@ -406,7 +406,7 @@ function DocEditor() {
     if (view !== "document") return;
     const onMove = (ev: MouseEvent) => {
       if (!dragging.current) return;
-      const r = caretRangeAt(ev.clientX, ev.clientY);
+      const r = snappedCaretRangeAt(ev.clientX, ev.clientY);
       if (!r) return;
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) return;
@@ -427,7 +427,7 @@ function DocEditor() {
       downPoint.current = null;
       let target: { sheet: number; line: number; offset: number } | null = null;
       if (pt) {
-        const range = caretRangeAt(pt.x, pt.y);
+        const range = snappedCaretRangeAt(pt.x, pt.y);
         const node: Node | null = range?.startContainer ?? null;
         const el =
           node && (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement);
@@ -688,7 +688,7 @@ function DocEditor() {
       <div
         key={`document-${s}`}
         data-sheet-idx={s}
-        className={`relative w-full ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
+        className={`relative w-full cursor-text ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
         onMouseDown={(e) => {
           if (e.button !== 0) return;
           // Take over the gesture: make every line inert and drive the
@@ -697,7 +697,7 @@ function DocEditor() {
           downPoint.current = { x: e.clientX, y: e.clientY };
           dragging.current = true;
           setSelMode(true);
-          const r = caretRangeAt(e.clientX, e.clientY);
+          const r = snappedCaretRangeAt(e.clientX, e.clientY);
           const sel = window.getSelection();
           if (r && sel) {
             sel.removeAllRanges();
@@ -795,7 +795,7 @@ function DocEditor() {
     return (
       <div
         key={`tiles-${s}`}
-        className={`relative w-full ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
+        className={`relative w-full cursor-text ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
