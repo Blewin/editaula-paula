@@ -1,0 +1,1 @@
+delete from public.items where content like '%alpha one%' and content like '%gamma three%';
