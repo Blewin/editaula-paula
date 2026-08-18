@@ -47,6 +47,23 @@ function joinSheets(sheets: string[]): string {
   return sheets.join("\n" + SEP + "\n");
 }
 
+function caretRangeAt(x: number, y: number): Range | null {
+  const d = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+  };
+  if (typeof d.caretRangeFromPoint === "function") return d.caretRangeFromPoint(x, y);
+  if (typeof d.caretPositionFromPoint === "function") {
+    const pos = d.caretPositionFromPoint(x, y);
+    if (!pos) return null;
+    const r = document.createRange();
+    r.setStart(pos.offsetNode, pos.offset);
+    r.collapse(true);
+    return r;
+  }
+  return null;
+}
+
 function TabItem({
   name,
   isActive,
@@ -167,6 +184,11 @@ function DocEditor() {
   const inputRef = React.useRef<HTMLDivElement>(null);
   const mainRef = React.useRef<HTMLElement>(null);
   const [tabsVisible, setTabsVisible] = React.useState(true);
+  // While true, no line is editable so the browser can select freely across
+  // lines and pages (an editing host confines selection to itself).
+  const [selMode, setSelMode] = React.useState(false);
+  const downPoint = React.useRef<{ x: number; y: number } | null>(null);
+  const dragging = React.useRef(false);
 
   React.useEffect(() => {
     if (doc) {
@@ -329,6 +351,7 @@ function DocEditor() {
   // Focus active line and place caret
   React.useEffect(() => {
     if (view !== "document") return;
+    if (selMode) return;
     if (active.sheet < 0 || active.line < 0) return;
     const el = inputRef.current;
     if (!el) return;
@@ -337,7 +360,125 @@ function DocEditor() {
       setCaretInEl(el, caretPos);
       setCaretPos(null);
     }
-  }, [active, caretPos, view]);
+  }, [active, caretPos, view, selMode]);
+
+  // A mouse gesture in the editor: everything is plain text while the button is
+  // down and we drive the selection ourselves, so it can span lines and pages.
+  React.useEffect(() => {
+    if (view !== "document") return;
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const r = caretRangeAt(ev.clientX, ev.clientY);
+      if (!r) return;
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      try {
+        sel.extend(r.startContainer, r.startOffset);
+      } catch {
+        // ignore ranges the browser refuses
+      }
+    };
+    const onUp = () => {
+      dragging.current = false;
+      if (!selMode) return;
+
+      const sel = window.getSelection();
+      const hasSelection = !!sel && !sel.isCollapsed && sel.toString().length > 0;
+      if (hasSelection) return; // keep lines inert so the selection survives
+      const pt = downPoint.current;
+      downPoint.current = null;
+      let target: { sheet: number; line: number; offset: number } | null = null;
+      if (pt) {
+        const range = caretRangeAt(pt.x, pt.y);
+        const node: Node | null = range?.startContainer ?? null;
+        const el =
+          node && (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement);
+        const lineEl = el?.closest?.("[data-line-idx]") as HTMLElement | null;
+        if (lineEl) {
+          const s = Number(lineEl.dataset.sheetIdx);
+          const l = Number(lineEl.dataset.lineIdx);
+          let offset = 0;
+          if (range) {
+            const pre = document.createRange();
+            pre.selectNodeContents(lineEl);
+            pre.setEnd(range.startContainer, range.startOffset);
+            offset = pre.toString().length;
+          }
+          if (Number.isFinite(s) && Number.isFinite(l)) {
+            target = { sheet: s, line: l, offset };
+          }
+        } else {
+          // Clicked empty space on a page: go to its last line.
+          const sheetEl = el?.closest?.("[data-sheet-idx]") as HTMLElement | null;
+          const s = sheetEl ? Number(sheetEl.dataset.sheetIdx) : NaN;
+          if (Number.isFinite(s)) {
+            const content = sheets[s] ?? "";
+            const linesArr = content.length === 0 ? [""] : content.split("\n");
+            target = {
+              sheet: s,
+              line: linesArr.length - 1,
+              offset: linesArr[linesArr.length - 1].length,
+            };
+          }
+        }
+      }
+      setSelMode(false);
+      if (target) {
+        setActive({ sheet: target.sheet, line: target.line });
+        setCaretPos(target.offset);
+      }
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [selMode, view, sheets]);
+
+  // A selection that leaves the focused line makes all lines inert so it holds.
+  React.useEffect(() => {
+    const onSelChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.toString().length === 0) return;
+      const el = inputRef.current;
+      if (
+        el &&
+        sel.anchorNode &&
+        sel.focusNode &&
+        el.contains(sel.anchorNode) &&
+        el.contains(sel.focusNode)
+      ) {
+        return; // selection inside the active line: keep it editable
+      }
+      setSelMode(true);
+    };
+    document.addEventListener("selectionchange", onSelChange);
+    return () => document.removeEventListener("selectionchange", onSelChange);
+  }, []);
+
+  // Cmd/Ctrl+A selects the whole tab, even when no line has focus.
+  React.useEffect(() => {
+    if (view !== "document") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "a" || e.shiftKey || e.altKey)
+        return;
+      const el = mainRef.current;
+      if (!el) return;
+      const ae = document.activeElement;
+      if (ae && ae !== document.body && !el.contains(ae)) return;
+      e.preventDefault();
+      (ae as HTMLElement | null)?.blur?.();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      setSelMode(true);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [view]);
 
   if (!doc || doc.type !== "doc") {
     return (
@@ -508,14 +649,23 @@ function DocEditor() {
     return (
       <div
         key={`document-${s}`}
+        data-sheet-idx={s}
         className={`relative w-full ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
         onMouseDown={(e) => {
-          // Clear any prior cross-line selection when starting a new click
+          if (e.button !== 0) return;
+          // Take over the gesture: make every line inert and drive the
+          // selection ourselves so it can span lines and pages.
+          e.preventDefault();
+          downPoint.current = { x: e.clientX, y: e.clientY };
+          dragging.current = true;
+          setSelMode(true);
+          const r = caretRangeAt(e.clientX, e.clientY);
           const sel = window.getSelection();
-          if (sel && !sel.isCollapsed) sel.removeAllRanges();
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            focusLine(s, lines.length - 1);
+          if (r && sel) {
+            sel.removeAllRanges();
+            sel.addRange(r);
+          } else {
+            sel?.removeAllRanges();
           }
         }}
       >
@@ -523,6 +673,8 @@ function DocEditor() {
           isActiveSheet && i === safeActive ? (
             <div
               key={`active-${s}-${i}`}
+              data-sheet-idx={s}
+              data-line-idx={i}
               ref={(el) => {
                 inputRef.current = el;
                 if (!el) return;
@@ -532,7 +684,7 @@ function DocEditor() {
                   el.dataset.lineKey = lineKey;
                 }
               }}
-              contentEditable
+              contentEditable={!selMode}
               suppressContentEditableWarning
               onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
               onKeyDown={onKeyDown}
@@ -542,16 +694,14 @@ function DocEditor() {
           ) : (
             <div
               key={i}
-              onClick={() => {
-                const sel = window.getSelection();
-                if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
-                focusLine(s, i);
-              }}
+              data-sheet-idx={s}
+              data-line-idx={i}
               className="my-0 cursor-text min-h-[1.25rem]"
               dangerouslySetInnerHTML={{ __html: renderLine(line) }}
             />
           ),
         )}
+
         <div
           className="absolute bottom-4 left-5 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
           title="Delete page"
