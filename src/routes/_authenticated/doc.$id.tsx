@@ -77,12 +77,32 @@ function snappedCaretRangeAt(x: number, y: number): Range | null {
   if (raw && inLine(raw)) return raw;
 
   const hit = document.elementFromPoint(x, y) as HTMLElement | null;
-  const sheetEl = hit?.closest?.("[data-sheet-idx]") as HTMLElement | null;
-  if (!sheetEl) return raw;
+  let sheetEl = hit?.closest?.("[data-sheet-idx]") as HTMLElement | null;
+  if (!sheetEl) {
+    // Point is outside every page (header, sidebar, page gaps, off-canvas):
+    // snap to the closest page so the selection never leaves the document.
+    const sheets = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-sheet-idx]"),
+    ).filter((el) => el.querySelector("[data-line-idx]"));
+    let bestSheet: HTMLElement | null = null;
+    let bestSheetDist = Infinity;
+    for (const el of sheets) {
+      const r = el.getBoundingClientRect();
+      const dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+      const dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+      const dist = Math.hypot(dx, dy);
+      if (dist < bestSheetDist) {
+        bestSheetDist = dist;
+        bestSheet = el;
+      }
+    }
+    if (!bestSheet) return null;
+    sheetEl = bestSheet;
+  }
   const lineEls = Array.from(
     sheetEl.querySelectorAll<HTMLElement>("[data-line-idx]"),
   );
-  if (lineEls.length === 0) return raw;
+  if (lineEls.length === 0) return null;
 
   let best = lineEls[0];
   let bestDist = Infinity;
@@ -101,6 +121,7 @@ function snappedCaretRangeAt(x: number, y: number): Range | null {
   range.collapse(!below);
   return range;
 }
+
 
 function TabItem({
   name,
