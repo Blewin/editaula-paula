@@ -571,21 +571,22 @@ function DocEditor() {
     return (
       <div
         key={`document-${s}`}
+        data-sheet-idx={s}
         className={`relative w-full ${pageMinHeight(s)} border bg-card p-6 ${borderRadius}`}
         onMouseDown={(e) => {
-          // Clear any prior cross-line selection when starting a new click
-          const sel = window.getSelection();
-          if (sel && !sel.isCollapsed) sel.removeAllRanges();
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            focusLine(s, lines.length - 1);
-          }
+          if (e.button !== 0) return;
+          downPoint.current = { x: e.clientX, y: e.clientY };
+          // Make every line inert for the duration of the gesture so the
+          // browser can select across lines and pages.
+          setSelMode(true);
         }}
       >
         {lines.map((line, i) =>
           isActiveSheet && i === safeActive ? (
             <div
               key={`active-${s}-${i}`}
+              data-sheet-idx={s}
+              data-line-idx={i}
               ref={(el) => {
                 inputRef.current = el;
                 if (!el) return;
@@ -595,7 +596,7 @@ function DocEditor() {
                   el.dataset.lineKey = lineKey;
                 }
               }}
-              contentEditable
+              contentEditable={!selMode}
               suppressContentEditableWarning
               onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
               onKeyDown={onKeyDown}
@@ -605,16 +606,14 @@ function DocEditor() {
           ) : (
             <div
               key={i}
-              onClick={() => {
-                const sel = window.getSelection();
-                if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
-                focusLine(s, i);
-              }}
+              data-sheet-idx={s}
+              data-line-idx={i}
               className="my-0 cursor-text min-h-[1.25rem]"
               dangerouslySetInnerHTML={{ __html: renderLine(line) }}
             />
           ),
         )}
+
         <div
           className="absolute bottom-4 left-5 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
           title="Delete page"
