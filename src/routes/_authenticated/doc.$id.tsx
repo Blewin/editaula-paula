@@ -869,7 +869,7 @@ function DocEditor() {
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
-        <span className="pointer-events-none absolute bottom-6 right-6 text-xs text-muted-foreground/60 select-none">
+        <span className="pointer-events-none absolute bottom-3 right-3 text-xs text-muted-foreground/60 select-none">
           {s + 1}
         </span>
       </div>
