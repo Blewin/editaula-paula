@@ -379,6 +379,19 @@ function DocEditor() {
           if (Number.isFinite(s) && Number.isFinite(l)) {
             target = { sheet: s, line: l, offset };
           }
+        } else {
+          // Clicked empty space on a page: go to its last line.
+          const sheetEl = el?.closest?.("[data-sheet-idx]") as HTMLElement | null;
+          const s = sheetEl ? Number(sheetEl.dataset.sheetIdx) : NaN;
+          if (Number.isFinite(s)) {
+            const content = sheets[s] ?? "";
+            const linesArr = content.length === 0 ? [""] : content.split("\n");
+            target = {
+              sheet: s,
+              line: linesArr.length - 1,
+              offset: linesArr[linesArr.length - 1].length,
+            };
+          }
         }
       }
       setSelMode(false);
