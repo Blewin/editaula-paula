@@ -345,12 +345,25 @@ function DocEditor() {
   }, [active, caretPos, view, selMode]);
 
   // A mouse gesture in the editor: everything is plain text while the button is
-  // down (native selection), and on release we either keep the selection or
-  // place the caret exactly where the user clicked.
+  // down and we drive the selection ourselves, so it can span lines and pages.
   React.useEffect(() => {
     if (view !== "document") return;
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const r = caretRangeAt(ev.clientX, ev.clientY);
+      if (!r) return;
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      try {
+        sel.extend(r.startContainer, r.startOffset);
+      } catch {
+        // ignore ranges the browser refuses
+      }
+    };
     const onUp = () => {
+      dragging.current = false;
       if (!selMode) return;
+
       const sel = window.getSelection();
       const hasSelection = !!sel && !sel.isCollapsed && sel.toString().length > 0;
       if (hasSelection) return; // keep lines inert so the selection survives
