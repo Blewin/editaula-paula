@@ -248,6 +248,7 @@ function DocEditor() {
   const [selMode, setSelMode] = React.useState(false);
   const downPoint = React.useRef<{ x: number; y: number } | null>(null);
   const dragging = React.useRef(false);
+  const dragMoved = React.useRef(false);
 
   React.useEffect(() => {
     if (doc) {
