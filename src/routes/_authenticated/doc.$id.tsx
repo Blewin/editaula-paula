@@ -389,10 +389,7 @@ function DocEditor() {
       downPoint.current = null;
       let target: { sheet: number; line: number; offset: number } | null = null;
       if (pt) {
-        const range =
-          typeof (document as any).caretRangeFromPoint === "function"
-            ? (document as any).caretRangeFromPoint(pt.x, pt.y)
-            : null;
+        const range = caretRangeAt(pt.x, pt.y);
         const node: Node | null = range?.startContainer ?? null;
         const el =
           node && (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement);
