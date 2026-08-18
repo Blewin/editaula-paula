@@ -333,6 +333,7 @@ function DocEditor() {
   // Focus active line and place caret
   React.useEffect(() => {
     if (view !== "document") return;
+    if (selMode) return;
     if (active.sheet < 0 || active.line < 0) return;
     const el = inputRef.current;
     if (!el) return;
@@ -341,7 +342,65 @@ function DocEditor() {
       setCaretInEl(el, caretPos);
       setCaretPos(null);
     }
-  }, [active, caretPos, view]);
+  }, [active, caretPos, view, selMode]);
+
+  // A mouse gesture in the editor: everything is plain text while the button is
+  // down (native selection), and on release we either keep the selection or
+  // place the caret exactly where the user clicked.
+  React.useEffect(() => {
+    if (view !== "document") return;
+    const onUp = () => {
+      if (!selMode) return;
+      const sel = window.getSelection();
+      const hasSelection = !!sel && !sel.isCollapsed && sel.toString().length > 0;
+      if (hasSelection) return; // keep lines inert so the selection survives
+      const pt = downPoint.current;
+      downPoint.current = null;
+      let target: { sheet: number; line: number; offset: number } | null = null;
+      if (pt) {
+        const range =
+          typeof (document as any).caretRangeFromPoint === "function"
+            ? (document as any).caretRangeFromPoint(pt.x, pt.y)
+            : null;
+        const node: Node | null = range?.startContainer ?? null;
+        const el =
+          node && (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement);
+        const lineEl = el?.closest?.("[data-line-idx]") as HTMLElement | null;
+        if (lineEl) {
+          const s = Number(lineEl.dataset.sheetIdx);
+          const l = Number(lineEl.dataset.lineIdx);
+          let offset = 0;
+          if (range) {
+            const pre = document.createRange();
+            pre.selectNodeContents(lineEl);
+            pre.setEnd(range.startContainer, range.startOffset);
+            offset = pre.toString().length;
+          }
+          if (Number.isFinite(s) && Number.isFinite(l)) {
+            target = { sheet: s, line: l, offset };
+          }
+        }
+      }
+      setSelMode(false);
+      if (target) {
+        setActive({ sheet: target.sheet, line: target.line });
+        setCaretPos(target.offset);
+      }
+    };
+    document.addEventListener("mouseup", onUp);
+    return () => document.removeEventListener("mouseup", onUp);
+  }, [selMode, view]);
+
+  // Clicking outside a selection re-enables editing.
+  React.useEffect(() => {
+    const onSelChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      if (sel.toString().length > 0) setSelMode(true);
+    };
+    document.addEventListener("selectionchange", onSelChange);
+    return () => document.removeEventListener("selectionchange", onSelChange);
+  }, []);
 
   if (!doc || doc.type !== "doc") {
     return (
