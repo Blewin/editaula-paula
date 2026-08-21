@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus, Trash2 } from "lucide-react";
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
-import { renderLine } from "@/lib/markdown";
+import { renderLine, lineEditClass } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
 
 type DocSearch = { view?: string; folder?: string };
@@ -899,7 +899,7 @@ function DocEditor() {
               suppressContentEditableWarning
               onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
               onKeyDown={onKeyDown}
-              className="block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem] [tab-size:4]"
+              className={`block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem] [tab-size:4] ${lineEditClass(line)}`}
               spellCheck={false}
             />
           ) : (
