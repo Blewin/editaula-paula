@@ -245,6 +245,39 @@ export function createDoc(parentId: string | null, name = "Untitled"): string {
   return id;
 }
 
+/** Create a doc with initial content, awaiting the DB write (and optional view membership). */
+export async function createDocWithContent(
+  parentId: string | null,
+  name: string,
+  content: string,
+  viewId?: string,
+): Promise<string> {
+  const id = genId();
+  if (!_currentUserId) return id;
+  const position = nextPosition((i) => i.parentId === parentId);
+  const newItem: Item = {
+    id, type: "doc", name, parentId, content, updatedAt: Date.now(), starred: false,
+  };
+  _items = [..._items, newItem];
+  notify();
+  const { error } = await supabase.from("items").insert({
+    id, user_id: _currentUserId, type: "doc", name, parent_id: parentId,
+    content, position,
+  });
+  if (error) { console.error(error); return id; }
+  if (viewId) {
+    _views = _views.map((x) =>
+      x.id === viewId && !x.itemIds.includes(id) ? { ...x, itemIds: [...x.itemIds, id] } : x,
+    );
+    notify();
+    const { error: vErr } = await supabase.from("view_items").insert({
+      view_id: viewId, item_id: id, user_id: _currentUserId, position: Date.now(),
+    });
+    if (vErr) console.error(vErr);
+  }
+  return id;
+}
+
 export function createFolder(parentId: string | null, name = "New folder"): string {
   const id = genId();
   if (!_currentUserId) return id;
