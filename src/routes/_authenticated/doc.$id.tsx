@@ -927,7 +927,8 @@ function DocEditor() {
 
 
   const splitParagraphs = (s: string): string[] => {
-    return s.split("\n").filter((p) => p.trim().length > 0);
+    // Keep empty lines: they become empty tiles that can be moved/reordered too.
+    return s.length === 0 ? [] : s.split("\n");
   };
   const joinParagraphs = (ps: string[]): string => ps.join("\n");
 
@@ -1006,9 +1007,11 @@ function DocEditor() {
                     // ignore
                   }
                 }}
-                className="cursor-move w-full rounded-md border bg-background px-4 py-2 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words"
+                className={`cursor-move w-full rounded-md border bg-background px-4 py-2 text-sm leading-snug shadow-sm hover:shadow-md transition-shadow whitespace-pre-wrap break-words [tab-size:4] ${
+                  p.trim().length === 0 ? "border-dashed min-h-[2.25rem]" : ""
+                }`}
               >
-                {p}
+                {p.length === 0 ? "\u00A0" : p}
               </div>
             ))}
           </div>
