@@ -840,7 +840,7 @@ function DocEditor() {
         const after = val.slice(pos);
         const nextVal = before + "\t" + after;
         const next = [...lines];
-        next[safeActive] = nextVal;
+        next[safeActive] = nextVal.replace(/\r?\n/g, SOFT_BREAK);
         // The active line's DOM is only reset when its line key changes, so
         // write the new text directly and restore the caret after the tab.
         el.textContent = nextVal;
