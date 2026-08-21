@@ -145,9 +145,7 @@ function Browser() {
     for (const file of Array.from(files)) {
       const text = await file.text();
       const name = file.name.replace(/\.(md|markdown|mdown|mkd|txt)$/i, "") || "Untitled";
-      const id = createDoc(currentFolder, name);
-      updateItem(id, { content: text } as Partial<Item>);
-      if (activeView) addItemToView(activeView.id, id);
+      await createDocWithContent(currentFolder, name, text, activeView?.id);
     }
   };
 
