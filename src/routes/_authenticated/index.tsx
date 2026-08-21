@@ -138,6 +138,20 @@ function Browser() {
     if (activeView) addItemToView(activeView.id, id);
   };
 
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleUploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    for (const file of Array.from(files)) {
+      const text = await file.text();
+      const name = file.name.replace(/\.(md|markdown|mdown|mkd|txt)$/i, "") || "Untitled";
+      const id = createDoc(currentFolder, name);
+      updateItem(id, { content: text } as Partial<Item>);
+      if (activeView) addItemToView(activeView.id, id);
+    }
+  };
+
+
 
   const handleAddView = () => {
     const nums = views.map((v) => {
