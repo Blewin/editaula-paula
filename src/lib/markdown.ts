@@ -41,7 +41,7 @@ export function renderLine(raw: string): string {
   const ul = /^(\s*)[-*]\s+(.*)$/.exec(line);
   if (ul) {
     const indent = Math.floor(ul[1].replace(/\t/g, "    ").length / 2);
-    return `<span class="inline-block" style="width:${indent * 1.5}rem"></span><span class="inline-block w-3 text-muted-foreground">•</span>${inline(ul[2])}`;
+    return `<span class="inline-block" style="width:${indent * 1.5}rem"></span><span class="inline-block w-[14px] text-muted-foreground">•</span>${inline(ul[2])}`;
   }
   const ol = /^(\d+)\.\s+(.*)$/.exec(line);
   if (ol) return `<span class="inline-block w-6">${ol[1]}.</span>${inline(ol[2])}`;
