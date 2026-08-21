@@ -928,8 +928,6 @@ function DocEditor() {
                 return (
                   <div
                     key={`active-${s}-${i}`}
-                    data-sheet-idx={s}
-                    data-line-idx={i}
                     className="flex items-start"
                   >
                     <span
@@ -940,6 +938,8 @@ function DocEditor() {
                       •
                     </span>
                     <div
+                      data-sheet-idx={s}
+                      data-line-idx={i}
                       ref={(el) => {
                         inputRef.current = el;
                         if (!el) return;
