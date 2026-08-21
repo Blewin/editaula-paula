@@ -418,9 +418,20 @@ function DocEditor() {
     const sheetContent = sheets[active.sheet] ?? "";
     const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
     const target = linesArr[active.line] ?? "";
-    if (document.activeElement === el) return;
     const bullet = parseBullet(target);
     const targetContent = bullet ? softToDom(bullet.text) : target;
+    if (document.activeElement === el) {
+      // While the user is typing we avoid resetting the DOM, except when the
+      // line has just become a bullet: the editor may still contain the raw
+      // "- " prefix, so strip it and adjust the caret.
+      if (bullet && el.textContent && el.textContent.startsWith(bulletPrefix(bullet))) {
+        const prefix = bulletPrefix(bullet);
+        const caret = getCaretInEl(el);
+        el.textContent = el.textContent.slice(prefix.length);
+        setCaretInEl(el, Math.max(0, caret - prefix.length));
+      }
+      return;
+    }
     if (el.textContent !== targetContent) el.textContent = targetContent;
   }, [active, sheets, view]);
 
