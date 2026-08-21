@@ -909,7 +909,12 @@ function DocEditor() {
               data-line-idx={i}
               className="my-0 cursor-text min-h-[1.25rem] whitespace-pre-wrap break-words [tab-size:4]"
 
-              dangerouslySetInnerHTML={{ __html: renderLine(line) }}
+              dangerouslySetInnerHTML={{
+                __html: line
+                  .split(SOFT_BREAK)
+                  .map((seg) => renderLine(seg))
+                  .join("<br />"),
+              }}
             />
           ),
         )}
