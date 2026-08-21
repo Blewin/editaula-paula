@@ -825,13 +825,17 @@ function DocEditor() {
         e.preventDefault();
         const before = val.slice(0, pos);
         const after = val.slice(pos);
+        const nextVal = before + "\t" + after;
         const next = [...lines];
-        next[safeActive] = before + "\t" + after;
+        next[safeActive] = nextVal;
+        // The active line's DOM is only reset when its line key changes, so
+        // write the new text directly and restore the caret after the tab.
+        el.textContent = nextVal;
+        setCaretInEl(el, pos + 1);
         writeSheet(s, next);
-        setCaretPos(pos + 1);
-        setActive({ sheet: s, line: safeActive });
         return;
       }
+
     };
 
     const borderRadius = pageBorderRadius(s);
