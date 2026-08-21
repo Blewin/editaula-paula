@@ -956,10 +956,21 @@ function DocEditor() {
                   inputRef.current = el;
                   if (!el) return;
                   const lineKey = `${s}:${i}`;
+                  const desired = softToDom(editText);
+                  const desiredText = desired.endsWith("\n") ? desired + "\n" : desired;
                   if (el.dataset.lineKey !== lineKey) {
-                    const dom = softToDom(editText);
-                    el.textContent = dom.endsWith("\n") ? dom + "\n" : dom;
+                    el.textContent = desiredText;
                     el.dataset.lineKey = lineKey;
+                  } else if (
+                    bullet &&
+                    el.textContent &&
+                    el.textContent.startsWith(bulletPrefix(bullet)) &&
+                    el.textContent !== desiredText
+                  ) {
+                    const prefix = bulletPrefix(bullet);
+                    const caret = getCaretInEl(el);
+                    el.textContent = desiredText;
+                    setCaretInEl(el, Math.max(0, caret - prefix.length));
                   }
                 }}
                 contentEditable={!selMode}
