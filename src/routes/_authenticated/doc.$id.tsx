@@ -917,77 +917,50 @@ function DocEditor() {
           }
         }}
       >
-        {lines.map((line, i) =>
-          isActiveSheet && i === safeActive ? (
-            (() => {
-              const bullet = parseBullet(line);
-              if (bullet) {
-                const indentUnits = Math.floor(
-                  bullet.indent.replace(/\t/g, "    ").length / 2,
-                );
-                return (
-                  <div
-                    key={`active-${s}-${i}`}
-                    className="flex items-start"
-                  >
-                    <span
-                      className="inline-block"
-                      style={{ width: `${indentUnits * 1.5}rem` }}
-                    />
-                    <span className="inline-block w-[14px] text-muted-foreground select-none">
-                      •
-                    </span>
-                    <div
-                      data-sheet-idx={s}
-                      data-line-idx={i}
-                      ref={(el) => {
-                        inputRef.current = el;
-                        if (!el) return;
-                        const lineKey = `${s}:${i}`;
-                        if (el.dataset.lineKey !== lineKey) {
-                          const dom = softToDom(bullet.text);
-                          el.textContent = dom.endsWith("\n") ? dom + "\n" : dom;
-                          el.dataset.lineKey = lineKey;
-                        }
-                      }}
-                      contentEditable={!selMode}
-                      suppressContentEditableWarning
-                      onInput={(e) =>
-                        onLineChange(
-                          bulletPrefix(bullet) + (e.currentTarget.textContent ?? ""),
-                        )
-                      }
-                      onKeyDown={onKeyDown}
-                      className={`block flex-1 outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem] [tab-size:4] ${lineEditClass(line)}`}
-                      spellCheck={false}
-                    />
-                  </div>
-                );
-              }
-              return (
-                <div
-                  key={`active-${s}-${i}`}
-                  data-sheet-idx={s}
-                  data-line-idx={i}
-                  ref={(el) => {
-                    inputRef.current = el;
-                    if (!el) return;
-                    const lineKey = `${s}:${i}`;
-                    if (el.dataset.lineKey !== lineKey) {
-                      const dom = softToDom(line);
-                      el.textContent = dom.endsWith("\n") ? dom + "\n" : dom;
-                      el.dataset.lineKey = lineKey;
-                    }
-                  }}
-                  contentEditable={!selMode}
-                  suppressContentEditableWarning
-                  onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
-                  onKeyDown={onKeyDown}
-                  className={`block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem] [tab-size:4] ${lineEditClass(line)}`}
-                  spellCheck={false}
-                />
-              );
-            })()
+        {lines.map((line, i) => {
+          const bullet = parseBullet(line);
+          const prefix = bullet ? bulletPrefix(bullet) : "";
+          const editText = bullet ? bullet.text : line;
+          const indentUnits = bullet
+            ? Math.floor(bullet.indent.replace(/\t/g, "    ").length / 2)
+            : 0;
+          return isActiveSheet && i === safeActive ? (
+            <div
+              key={`active-${s}-${i}`}
+              className="flex items-start"
+            >
+              <span
+                className="inline-block"
+                style={{ width: `${indentUnits * 1.5}rem` }}
+              />
+              <span
+                className={`inline-block w-[14px] text-muted-foreground select-none ${!bullet ? "opacity-0" : ""}`}
+              >
+                •
+              </span>
+              <div
+                data-sheet-idx={s}
+                data-line-idx={i}
+                ref={(el) => {
+                  inputRef.current = el;
+                  if (!el) return;
+                  const lineKey = `${s}:${i}`;
+                  if (el.dataset.lineKey !== lineKey) {
+                    const dom = softToDom(editText);
+                    el.textContent = dom.endsWith("\n") ? dom + "\n" : dom;
+                    el.dataset.lineKey = lineKey;
+                  }
+                }}
+                contentEditable={!selMode}
+                suppressContentEditableWarning
+                onInput={(e) =>
+                  onLineChange(prefix + (e.currentTarget.textContent ?? ""))
+                }
+                onKeyDown={onKeyDown}
+                className={`block flex-1 outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem] [tab-size:4] ${lineEditClass(line)}`}
+                spellCheck={false}
+              />
+            </div>
           ) : (
             <div
               key={i}
