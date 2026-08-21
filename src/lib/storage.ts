@@ -231,7 +231,7 @@ function genId(): string {
 export function createDoc(parentId: string | null, name = "Untitled"): string {
   const id = genId();
   if (!_currentUserId) return id;
-  const content = `# ${name}\n\nStart writing...`;
+  const content = "";
   const position = nextPosition((i) => i.parentId === parentId);
   const newItem: Item = {
     id, type: "doc", name, parentId, content, updatedAt: Date.now(), starred: false,
