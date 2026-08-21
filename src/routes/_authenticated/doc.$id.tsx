@@ -885,7 +885,7 @@ function DocEditor() {
               suppressContentEditableWarning
               onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
               onKeyDown={onKeyDown}
-              className="block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem]"
+              className="block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem] [tab-size:4]"
               spellCheck={false}
             />
           ) : (
@@ -893,7 +893,8 @@ function DocEditor() {
               key={i}
               data-sheet-idx={s}
               data-line-idx={i}
-              className="my-0 cursor-text min-h-[1.25rem]"
+              className="my-0 cursor-text min-h-[1.25rem] whitespace-pre-wrap break-words [tab-size:4]"
+
               dangerouslySetInnerHTML={{ __html: renderLine(line) }}
             />
           ),
