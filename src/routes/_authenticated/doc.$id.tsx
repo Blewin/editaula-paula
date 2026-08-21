@@ -722,15 +722,10 @@ function DocEditor() {
     const safeActive = isActiveSheet ? Math.min(active.line, lines.length - 1) : -1;
 
     const onLineChange = (val: string) => {
-      if (val.includes("\n")) {
-        const parts = val.split("\n");
-        const next = [...lines];
-        next.splice(safeActive, 1, ...parts);
-        setLinesAndActive(s, next, safeActive + parts.length - 1, parts[parts.length - 1].length);
-        return;
-      }
+      // Newlines inside a single line come from soft breaks (Shift+Enter) or
+      // pasted text; store them as soft-break characters, never as new lines.
       const next = [...lines];
-      next[safeActive] = val;
+      next[safeActive] = val.replace(/\r?\n/g, SOFT_BREAK);
       writeSheet(s, next);
     };
 
