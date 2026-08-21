@@ -779,7 +779,7 @@ function DocEditor() {
         e.preventDefault();
         const prev = lines[safeActive - 1];
         const next = [...lines];
-        next.splice(safeActive - 1, 2, prev + val);
+        next.splice(safeActive - 1, 2, prev + val.replace(/\r?\n/g, SOFT_BREAK));
         setLinesAndActive(s, next, safeActive - 1, prev.length);
         return;
       }
