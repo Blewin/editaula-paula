@@ -37,6 +37,10 @@ function serializeTabs(tabs: Tab[]): string {
   return TABS_MARKER + JSON.stringify(tabs);
 }
 
+// Soft line break (Shift+Enter): stays inside the same line/tile.
+const SOFT_BREAK = "\u2028";
+const softToDom = (s: string) => s.split(SOFT_BREAK).join("\n");
+
 function splitSheets(content: string): string[] {
   const parts = content.split("\n" + SEP + "\n");
   while (parts.length < 2) parts.push("");
