@@ -44,6 +44,20 @@ export function renderLine(raw: string): string {
   return inline(line);
 }
 
+// Tailwind classes that mimic a rendered line's look while it is being edited
+// (raw markdown is visible, but headings stay big/bold, quotes stay italic).
+export function lineEditClass(raw: string): string {
+  const line = raw.trimStart();
+  const h = /^(#{1,6})\s+/.exec(line);
+  if (h) {
+    const sizes = ["text-3xl", "text-2xl", "text-xl", "text-lg", "text-base", "text-sm"];
+    return `${sizes[h[1].length - 1]} font-bold`;
+  }
+  if (line.startsWith("> ")) return "italic text-muted-foreground";
+  if (line.startsWith("```")) return "font-mono text-sm text-muted-foreground";
+  return "";
+}
+
 export function renderMarkdown(md: string): string {
   const lines = md.split("\n");
   const html: string[] = [];
