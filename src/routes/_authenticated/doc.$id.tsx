@@ -752,10 +752,24 @@ function DocEditor() {
         return;
       }
 
+      // Soft line break: wraps within the same line/tile.
+      if (e.key === "Enter" && e.shiftKey) {
+        e.preventDefault();
+        const nextVal = val.slice(0, pos) + "\n" + val.slice(pos);
+        const next = [...lines];
+        next[safeActive] = nextVal.replace(/\r?\n/g, SOFT_BREAK);
+        // The active line's DOM is only reset when its line key changes.
+        el.textContent = nextVal.endsWith("\n") ? nextVal + "\n" : nextVal;
+        setCaretInEl(el, pos + 1);
+        writeSheet(s, next);
+        return;
+      }
+
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        const before = val.slice(0, pos);
-        const after = val.slice(pos);
+        const mval = val.replace(/\r?\n/g, SOFT_BREAK);
+        const before = mval.slice(0, pos);
+        const after = mval.slice(pos);
         const next = [...lines];
         next.splice(safeActive, 1, before, after);
         setLinesAndActive(s, next, safeActive + 1, 0);
