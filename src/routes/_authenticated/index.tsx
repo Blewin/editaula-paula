@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X, LogOut, Download } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X, LogOut, Download, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 import {
@@ -138,6 +138,20 @@ function Browser() {
     if (activeView) addItemToView(activeView.id, id);
   };
 
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleUploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    for (const file of Array.from(files)) {
+      const text = await file.text();
+      const name = file.name.replace(/\.(md|markdown|mdown|mkd|txt)$/i, "") || "Untitled";
+      const id = createDoc(currentFolder, name);
+      updateItem(id, { content: text } as Partial<Item>);
+      if (activeView) addItemToView(activeView.id, id);
+    }
+  };
+
+
 
   const handleAddView = () => {
     const nums = views.map((v) => {
@@ -221,9 +235,24 @@ function Browser() {
             <div />
             <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
             <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md,.markdown,.mdown,.mkd,.txt,text/markdown,text/plain"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  void handleUploadFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isStarred}>
+                <Upload className="size-4" /> Upload
+              </Button>
               <Button variant="outline" size="sm" onClick={() => downloadBackup(items, views)}>
                 <Download className="size-4" /> Download
               </Button>
+
               <UserMenu />
             </div>
           </div>
