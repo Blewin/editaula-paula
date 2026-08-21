@@ -958,6 +958,7 @@ function DocEditor() {
                   const lineKey = `${s}:${i}`;
                   const desired = softToDom(editText);
                   const desiredText = desired.endsWith("\n") ? desired + "\n" : desired;
+                  console.log("ref", lineKey, "bullet", !!bullet, "editText", editText, "desired", desiredText, "current", el.textContent, "lineKey", el.dataset.lineKey);
                   if (el.dataset.lineKey !== lineKey) {
                     el.textContent = desiredText;
                     el.dataset.lineKey = lineKey;
