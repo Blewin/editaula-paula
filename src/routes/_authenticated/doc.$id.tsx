@@ -419,7 +419,9 @@ function DocEditor() {
     const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
     const target = linesArr[active.line] ?? "";
     if (document.activeElement === el) return;
-    if (el.textContent !== target) el.textContent = target;
+    const bullet = parseBullet(target);
+    const targetContent = bullet ? softToDom(bullet.text) : target;
+    if (el.textContent !== targetContent) el.textContent = targetContent;
   }, [active, sheets, view]);
 
   // Focus active line and place caret
