@@ -38,8 +38,11 @@ export function renderLine(raw: string): string {
     const sizes = ["text-3xl", "text-2xl", "text-xl", "text-lg", "text-base", "text-sm"];
     return `<span class="${sizes[level - 1]} font-bold">${inline(h[2])}</span>`;
   }
-  const ul = /^[-*]\s+(.*)$/.exec(line);
-  if (ul) return `<span class="inline-block w-4">•</span>${inline(ul[1])}`;
+  const ul = /^(\s*)[-*]\s+(.*)$/.exec(line);
+  if (ul) {
+    const indent = Math.floor(ul[1].replace(/\t/g, "    ").length / 2);
+    return `<span class="inline-block" style="width:${indent * 1.5}rem"></span><span class="inline-block w-6">•</span>${inline(ul[2])}`;
+  }
   const ol = /^(\d+)\.\s+(.*)$/.exec(line);
   if (ol) return `<span class="inline-block w-6">${ol[1]}.</span>${inline(ol[2])}`;
   if (line.startsWith("> "))
@@ -61,6 +64,7 @@ export function lineEditClass(raw: string): string {
     const sizes = ["text-3xl", "text-2xl", "text-xl", "text-lg", "text-base", "text-sm"];
     return `${sizes[h[1].length - 1]} font-bold`;
   }
+  if (/^[-*]\s+/.test(line)) return "";
   if (line.startsWith("> ")) return "italic text-muted-foreground";
   if (line.startsWith("```")) return "font-mono text-sm text-muted-foreground";
   return "";
