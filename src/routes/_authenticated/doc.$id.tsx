@@ -927,7 +927,8 @@ function DocEditor() {
 
 
   const splitParagraphs = (s: string): string[] => {
-    return s.split("\n").filter((p) => p.trim().length > 0);
+    // Keep empty lines: they become empty tiles that can be moved/reordered too.
+    return s.length === 0 ? [] : s.split("\n");
   };
   const joinParagraphs = (ps: string[]): string => ps.join("\n");
 
