@@ -1030,7 +1030,13 @@ function DocEditor() {
                   p.trim().length === 0 ? "border-dashed min-h-[2.25rem]" : ""
                 }`}
               >
-                {p.length === 0 ? "\u00A0" : softToDom(p)}
+                {p.trim() === "---" || p.trim() === "***" || p.trim() === "___" ? (
+                  <hr className="w-full border-muted my-2" />
+                ) : p.length === 0 ? (
+                  "\u00A0"
+                ) : (
+                  softToDom(p)
+                )}
               </div>
             ))}
           </div>
