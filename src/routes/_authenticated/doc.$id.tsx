@@ -37,6 +37,10 @@ function serializeTabs(tabs: Tab[]): string {
   return TABS_MARKER + JSON.stringify(tabs);
 }
 
+// Soft line break (Shift+Enter): stays inside the same line/tile.
+const SOFT_BREAK = "\u2028";
+const softToDom = (s: string) => s.split(SOFT_BREAK).join("\n");
+
 function splitSheets(content: string): string[] {
   const parts = content.split("\n" + SEP + "\n");
   while (parts.length < 2) parts.push("");
@@ -722,15 +726,10 @@ function DocEditor() {
     const safeActive = isActiveSheet ? Math.min(active.line, lines.length - 1) : -1;
 
     const onLineChange = (val: string) => {
-      if (val.includes("\n")) {
-        const parts = val.split("\n");
-        const next = [...lines];
-        next.splice(safeActive, 1, ...parts);
-        setLinesAndActive(s, next, safeActive + parts.length - 1, parts[parts.length - 1].length);
-        return;
-      }
+      // Newlines inside a single line come from soft breaks (Shift+Enter) or
+      // pasted text; store them as soft-break characters, never as new lines.
       const next = [...lines];
-      next[safeActive] = val;
+      next[safeActive] = val.replace(/\r?\n/g, SOFT_BREAK);
       writeSheet(s, next);
     };
 
@@ -753,10 +752,24 @@ function DocEditor() {
         return;
       }
 
+      // Soft line break: wraps within the same line/tile.
+      if (e.key === "Enter" && e.shiftKey) {
+        e.preventDefault();
+        const nextVal = val.slice(0, pos) + "\n" + val.slice(pos);
+        const next = [...lines];
+        next[safeActive] = nextVal.replace(/\r?\n/g, SOFT_BREAK);
+        // The active line's DOM is only reset when its line key changes.
+        el.textContent = nextVal.endsWith("\n") ? nextVal + "\n" : nextVal;
+        setCaretInEl(el, pos + 1);
+        writeSheet(s, next);
+        return;
+      }
+
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        const before = val.slice(0, pos);
-        const after = val.slice(pos);
+        const mval = val.replace(/\r?\n/g, SOFT_BREAK);
+        const before = mval.slice(0, pos);
+        const after = mval.slice(pos);
         const next = [...lines];
         next.splice(safeActive, 1, before, after);
         setLinesAndActive(s, next, safeActive + 1, 0);
@@ -766,7 +779,7 @@ function DocEditor() {
         e.preventDefault();
         const prev = lines[safeActive - 1];
         const next = [...lines];
-        next.splice(safeActive - 1, 2, prev + val);
+        next.splice(safeActive - 1, 2, prev + val.replace(/\r?\n/g, SOFT_BREAK));
         setLinesAndActive(s, next, safeActive - 1, prev.length);
         return;
       }
@@ -827,7 +840,7 @@ function DocEditor() {
         const after = val.slice(pos);
         const nextVal = before + "\t" + after;
         const next = [...lines];
-        next[safeActive] = nextVal;
+        next[safeActive] = nextVal.replace(/\r?\n/g, SOFT_BREAK);
         // The active line's DOM is only reset when its line key changes, so
         // write the new text directly and restore the caret after the tab.
         el.textContent = nextVal;
@@ -877,7 +890,8 @@ function DocEditor() {
                 if (!el) return;
                 const lineKey = `${s}:${i}`;
                 if (el.dataset.lineKey !== lineKey) {
-                  el.textContent = line;
+                  const dom = softToDom(line);
+                  el.textContent = dom.endsWith("\n") ? dom + "\n" : dom;
                   el.dataset.lineKey = lineKey;
                 }
               }}
@@ -895,7 +909,12 @@ function DocEditor() {
               data-line-idx={i}
               className="my-0 cursor-text min-h-[1.25rem] whitespace-pre-wrap break-words [tab-size:4]"
 
-              dangerouslySetInnerHTML={{ __html: renderLine(line) }}
+              dangerouslySetInnerHTML={{
+                __html: line
+                  .split(SOFT_BREAK)
+                  .map((seg) => renderLine(seg))
+                  .join("<br />"),
+              }}
             />
           ),
         )}
@@ -1011,7 +1030,7 @@ function DocEditor() {
                   p.trim().length === 0 ? "border-dashed min-h-[2.25rem]" : ""
                 }`}
               >
-                {p.length === 0 ? "\u00A0" : p}
+                {p.length === 0 ? "\u00A0" : softToDom(p)}
               </div>
             ))}
           </div>
