@@ -975,7 +975,7 @@ function DocEditor() {
                   .join("<br />"),
               }}
             />
-          ),
+          )
         )}
 
         <div
