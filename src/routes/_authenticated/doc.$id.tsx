@@ -890,7 +890,8 @@ function DocEditor() {
                 if (!el) return;
                 const lineKey = `${s}:${i}`;
                 if (el.dataset.lineKey !== lineKey) {
-                  el.textContent = line;
+                  const dom = softToDom(line);
+                  el.textContent = dom.endsWith("\n") ? dom + "\n" : dom;
                   el.dataset.lineKey = lineKey;
                 }
               }}
