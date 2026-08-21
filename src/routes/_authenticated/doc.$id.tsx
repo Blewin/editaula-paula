@@ -41,6 +41,16 @@ function serializeTabs(tabs: Tab[]): string {
 const SOFT_BREAK = "\u2028";
 const softToDom = (s: string) => s.split(SOFT_BREAK).join("\n");
 
+const BULLET_RE = /^(\s*)([-*])(\s+)(.*)$/;
+function parseBullet(line: string) {
+  const m = BULLET_RE.exec(line);
+  if (!m) return null;
+  return { indent: m[1], marker: m[2], space: m[3], text: m[4] };
+}
+function bulletPrefix(bullet: NonNullable<ReturnType<typeof parseBullet>>) {
+  return bullet.marker + bullet.space;
+}
+
 function splitSheets(content: string): string[] {
   const parts = content.split("\n" + SEP + "\n");
   while (parts.length < 2) parts.push("");
