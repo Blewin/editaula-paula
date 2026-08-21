@@ -976,7 +976,7 @@ function DocEditor() {
               }}
             />
           )
-        )}
+        })}
 
         <div
           className="absolute bottom-3 left-3 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
