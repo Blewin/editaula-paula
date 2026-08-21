@@ -768,11 +768,25 @@ function DocEditor() {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         const mval = val.replace(/\r?\n/g, SOFT_BREAK);
+        const bullet = /^(\s*)([-*])(\s+)(.*)$/.exec(mval);
+        // Empty bullet + Enter => remove the bullet marker, stay on the same line.
+        if (bullet && bullet[4].trim() === "") {
+          const next = [...lines];
+          next[safeActive] = "";
+          el.textContent = "";
+          setCaretInEl(el, 0);
+          writeSheet(s, next);
+          return;
+        }
         const before = mval.slice(0, pos);
         const after = mval.slice(pos);
+        // Continue the bullet list on the new line.
+        const prefix = bullet && pos >= (bullet[1] + bullet[2] + bullet[3]).length
+          ? bullet[1] + bullet[2] + bullet[3]
+          : "";
         const next = [...lines];
-        next.splice(safeActive, 1, before, after);
-        setLinesAndActive(s, next, safeActive + 1, 0);
+        next.splice(safeActive, 1, before, prefix + after);
+        setLinesAndActive(s, next, safeActive + 1, prefix.length);
         return;
       }
       if (e.key === "Backspace" && pos === 0 && safeActive > 0) {
