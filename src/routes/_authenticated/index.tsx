@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   addItemToView,
   createDoc,
+  createDocWithContent,
   createFolder,
   createView,
   deleteItem,
