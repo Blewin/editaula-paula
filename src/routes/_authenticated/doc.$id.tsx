@@ -796,7 +796,7 @@ function DocEditor() {
         const after = val.slice(pos);
         const next = [...lines];
         next.splice(safeActive, 1, prefix + before, prefix + after);
-        setLinesAndActive(s, next, safeActive + 1, prefix.length);
+        setLinesAndActive(s, next, safeActive + 1, 0);
         return;
       }
       if (e.key === "Backspace" && pos === 0 && safeActive > 0) {
