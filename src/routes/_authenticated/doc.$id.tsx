@@ -749,6 +749,10 @@ function DocEditor() {
       const el = e.currentTarget;
       const val = el.textContent ?? "";
       const pos = getCaretInEl(el);
+      const fullLine = lines[safeActive] ?? "";
+      const bullet = parseBullet(fullLine);
+      const prefix = bullet ? bulletPrefix(bullet) : "";
+      const contentLen = bullet ? bullet.text.length : fullLine.length;
 
       // Select all across current tab's pages
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a" && !e.shiftKey && !e.altKey) {
@@ -769,7 +773,7 @@ function DocEditor() {
         e.preventDefault();
         const nextVal = val.slice(0, pos) + "\n" + val.slice(pos);
         const next = [...lines];
-        next[safeActive] = nextVal.replace(/\r?\n/g, SOFT_BREAK);
+        next[safeActive] = (prefix + nextVal).replace(/\r?\n/g, SOFT_BREAK);
         // The active line's DOM is only reset when its line key changes.
         el.textContent = nextVal.endsWith("\n") ? nextVal + "\n" : nextVal;
         setCaretInEl(el, pos + 1);
@@ -779,10 +783,8 @@ function DocEditor() {
 
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        const mval = val.replace(/\r?\n/g, SOFT_BREAK);
-        const bullet = /^(\s*)([-*])(\s+)(.*)$/.exec(mval);
         // Empty bullet + Enter => remove the bullet marker, stay on the same line.
-        if (bullet && bullet[4].trim() === "") {
+        if (bullet && val.trim() === "") {
           const next = [...lines];
           next[safeActive] = "";
           el.textContent = "";
@@ -790,14 +792,10 @@ function DocEditor() {
           writeSheet(s, next);
           return;
         }
-        const before = mval.slice(0, pos);
-        const after = mval.slice(pos);
-        // Continue the bullet list on the new line.
-        const prefix = bullet && pos >= (bullet[1] + bullet[2] + bullet[3]).length
-          ? bullet[1] + bullet[2] + bullet[3]
-          : "";
+        const before = val.slice(0, pos);
+        const after = val.slice(pos);
         const next = [...lines];
-        next.splice(safeActive, 1, before, prefix + after);
+        next.splice(safeActive, 1, prefix + before, prefix + after);
         setLinesAndActive(s, next, safeActive + 1, prefix.length);
         return;
       }
@@ -805,19 +803,25 @@ function DocEditor() {
         e.preventDefault();
         const prev = lines[safeActive - 1];
         const next = [...lines];
-        next.splice(safeActive - 1, 2, prev + val.replace(/\r?\n/g, SOFT_BREAK));
-        setLinesAndActive(s, next, safeActive - 1, prev.length);
+        next.splice(safeActive - 1, 2, prev + prefix + val.replace(/\r?\n/g, SOFT_BREAK));
+        const prevBullet = parseBullet(prev);
+        setLinesAndActive(s, next, safeActive - 1, prevBullet ? prevBullet.text.length : prev.length);
         return;
       }
       if (e.key === "ArrowUp") {
         if (safeActive > 0) {
           e.preventDefault();
-          setCaretPos(Math.min(pos, lines[safeActive - 1].length));
+          const prev = lines[safeActive - 1];
+          const prevBullet = parseBullet(prev);
+          const prevContentLen = prevBullet ? prevBullet.text.length : prev.length;
+          setCaretPos(Math.min(pos, prevContentLen));
           setActive({ sheet: s, line: safeActive - 1 });
         } else if (s > 0) {
           e.preventDefault();
           const prev = sheetLines(s - 1);
-          setCaretPos(Math.min(pos, prev[prev.length - 1].length));
+          const prevBullet = parseBullet(prev[prev.length - 1]);
+          const prevContentLen = prevBullet ? prevBullet.text.length : prev[prev.length - 1].length;
+          setCaretPos(Math.min(pos, prevContentLen));
           setActive({ sheet: s - 1, line: prev.length - 1 });
         }
         return;
@@ -825,12 +829,17 @@ function DocEditor() {
       if (e.key === "ArrowDown") {
         if (safeActive < lines.length - 1) {
           e.preventDefault();
-          setCaretPos(Math.min(pos, lines[safeActive + 1].length));
+          const nextLine = lines[safeActive + 1];
+          const nextBullet = parseBullet(nextLine);
+          const nextContentLen = nextBullet ? nextBullet.text.length : nextLine.length;
+          setCaretPos(Math.min(pos, nextContentLen));
           setActive({ sheet: s, line: safeActive + 1 });
         } else if (s < sheets.length - 1) {
           e.preventDefault();
           const nextLines = sheetLines(s + 1);
-          setCaretPos(Math.min(pos, nextLines[0].length));
+          const nextBullet = parseBullet(nextLines[0]);
+          const nextContentLen = nextBullet ? nextBullet.text.length : nextLines[0].length;
+          setCaretPos(Math.min(pos, nextContentLen));
           setActive({ sheet: s + 1, line: 0 });
         }
         return;
@@ -838,12 +847,15 @@ function DocEditor() {
       if (e.key === "ArrowLeft" && pos === 0) {
         if (safeActive > 0) {
           e.preventDefault();
-          setCaretPos(lines[safeActive - 1].length);
+          const prev = lines[safeActive - 1];
+          const prevBullet = parseBullet(prev);
+          setCaretPos(prevBullet ? prevBullet.text.length : prev.length);
           setActive({ sheet: s, line: safeActive - 1 });
         } else if (s > 0) {
           e.preventDefault();
           const prev = sheetLines(s - 1);
-          setCaretPos(prev[prev.length - 1].length);
+          const prevBullet = parseBullet(prev[prev.length - 1]);
+          setCaretPos(prevBullet ? prevBullet.text.length : prev[prev.length - 1].length);
           setActive({ sheet: s - 1, line: prev.length - 1 });
         }
         return;
@@ -866,7 +878,7 @@ function DocEditor() {
         const after = val.slice(pos);
         const nextVal = before + "\t" + after;
         const next = [...lines];
-        next[safeActive] = nextVal.replace(/\r?\n/g, SOFT_BREAK);
+        next[safeActive] = (prefix + nextVal).replace(/\r?\n/g, SOFT_BREAK);
         // The active line's DOM is only reset when its line key changes, so
         // write the new text directly and restore the caret after the tab.
         el.textContent = nextVal;
