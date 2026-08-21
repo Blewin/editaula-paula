@@ -29,6 +29,9 @@ function inline(s: string) {
 export function renderLine(raw: string): string {
   const line = raw.trimEnd();
   if (!line.trim()) return '<span class="opacity-0">.</span>';
+  if (/^(---|___|\*\*\*)\s*$/.test(line.trim())) {
+    return '<hr class="my-2 border-muted" />';
+  }
   const h = /^(#{1,6})\s+(.*)$/.exec(line);
   if (h) {
     const level = h[1].length;
@@ -50,6 +53,9 @@ export function renderLine(raw: string): string {
 // (raw markdown is visible, but headings stay big/bold, quotes stay italic).
 export function lineEditClass(raw: string): string {
   const line = raw.trimStart();
+  if (/^(---|___|\*\*\*)\s*$/.test(line.trim())) {
+    return "w-full border-b-2 border-muted text-muted-foreground text-center text-sm py-2";
+  }
   const h = /^(#{1,6})\s+/.exec(line);
   if (h) {
     const sizes = ["text-3xl", "text-2xl", "text-xl", "text-lg", "text-base", "text-sm"];
