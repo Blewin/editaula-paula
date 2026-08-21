@@ -41,6 +41,16 @@ function serializeTabs(tabs: Tab[]): string {
 const SOFT_BREAK = "\u2028";
 const softToDom = (s: string) => s.split(SOFT_BREAK).join("\n");
 
+const BULLET_RE = /^(\s*)([-*])(\s+)(.*)$/;
+function parseBullet(line: string) {
+  const m = BULLET_RE.exec(line);
+  if (!m) return null;
+  return { indent: m[1], marker: m[2], space: m[3], text: m[4] };
+}
+function bulletPrefix(bullet: NonNullable<ReturnType<typeof parseBullet>>) {
+  return bullet.marker + bullet.space;
+}
+
 function splitSheets(content: string): string[] {
   const parts = content.split("\n" + SEP + "\n");
   while (parts.length < 2) parts.push("");
@@ -408,8 +418,21 @@ function DocEditor() {
     const sheetContent = sheets[active.sheet] ?? "";
     const linesArr = sheetContent.length === 0 ? [""] : sheetContent.split("\n");
     const target = linesArr[active.line] ?? "";
-    if (document.activeElement === el) return;
-    if (el.textContent !== target) el.textContent = target;
+    const bullet = parseBullet(target);
+    const targetContent = bullet ? softToDom(bullet.text) : target;
+    if (document.activeElement === el) {
+      // While the user is typing we avoid resetting the DOM, except when the
+      // line has just become a bullet: the editor may still contain the raw
+      // "- " prefix, so strip it and adjust the caret.
+      if (bullet && el.textContent && el.textContent.startsWith(bulletPrefix(bullet))) {
+        const prefix = bulletPrefix(bullet);
+        const caret = getCaretInEl(el);
+        el.textContent = el.textContent.slice(prefix.length);
+        setCaretInEl(el, Math.max(0, caret - prefix.length));
+      }
+      return;
+    }
+    if (el.textContent !== targetContent) el.textContent = targetContent;
   }, [active, sheets, view]);
 
   // Focus active line and place caret
@@ -737,6 +760,10 @@ function DocEditor() {
       const el = e.currentTarget;
       const val = el.textContent ?? "";
       const pos = getCaretInEl(el);
+      const fullLine = lines[safeActive] ?? "";
+      const bullet = parseBullet(fullLine);
+      const prefix = bullet ? bulletPrefix(bullet) : "";
+      const contentLen = bullet ? bullet.text.length : fullLine.length;
 
       // Select all across current tab's pages
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a" && !e.shiftKey && !e.altKey) {
@@ -757,7 +784,7 @@ function DocEditor() {
         e.preventDefault();
         const nextVal = val.slice(0, pos) + "\n" + val.slice(pos);
         const next = [...lines];
-        next[safeActive] = nextVal.replace(/\r?\n/g, SOFT_BREAK);
+        next[safeActive] = (prefix + nextVal).replace(/\r?\n/g, SOFT_BREAK);
         // The active line's DOM is only reset when its line key changes.
         el.textContent = nextVal.endsWith("\n") ? nextVal + "\n" : nextVal;
         setCaretInEl(el, pos + 1);
@@ -767,10 +794,8 @@ function DocEditor() {
 
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        const mval = val.replace(/\r?\n/g, SOFT_BREAK);
-        const bullet = /^(\s*)([-*])(\s+)(.*)$/.exec(mval);
         // Empty bullet + Enter => remove the bullet marker, stay on the same line.
-        if (bullet && bullet[4].trim() === "") {
+        if (bullet && val.trim() === "") {
           const next = [...lines];
           next[safeActive] = "";
           el.textContent = "";
@@ -778,34 +803,36 @@ function DocEditor() {
           writeSheet(s, next);
           return;
         }
-        const before = mval.slice(0, pos);
-        const after = mval.slice(pos);
-        // Continue the bullet list on the new line.
-        const prefix = bullet && pos >= (bullet[1] + bullet[2] + bullet[3]).length
-          ? bullet[1] + bullet[2] + bullet[3]
-          : "";
+        const before = val.slice(0, pos);
+        const after = val.slice(pos);
         const next = [...lines];
-        next.splice(safeActive, 1, before, prefix + after);
-        setLinesAndActive(s, next, safeActive + 1, prefix.length);
+        next.splice(safeActive, 1, prefix + before, prefix + after);
+        setLinesAndActive(s, next, safeActive + 1, 0);
         return;
       }
       if (e.key === "Backspace" && pos === 0 && safeActive > 0) {
         e.preventDefault();
         const prev = lines[safeActive - 1];
         const next = [...lines];
-        next.splice(safeActive - 1, 2, prev + val.replace(/\r?\n/g, SOFT_BREAK));
-        setLinesAndActive(s, next, safeActive - 1, prev.length);
+        next.splice(safeActive - 1, 2, prev + prefix + val.replace(/\r?\n/g, SOFT_BREAK));
+        const prevBullet = parseBullet(prev);
+        setLinesAndActive(s, next, safeActive - 1, prevBullet ? prevBullet.text.length : prev.length);
         return;
       }
       if (e.key === "ArrowUp") {
         if (safeActive > 0) {
           e.preventDefault();
-          setCaretPos(Math.min(pos, lines[safeActive - 1].length));
+          const prev = lines[safeActive - 1];
+          const prevBullet = parseBullet(prev);
+          const prevContentLen = prevBullet ? prevBullet.text.length : prev.length;
+          setCaretPos(Math.min(pos, prevContentLen));
           setActive({ sheet: s, line: safeActive - 1 });
         } else if (s > 0) {
           e.preventDefault();
           const prev = sheetLines(s - 1);
-          setCaretPos(Math.min(pos, prev[prev.length - 1].length));
+          const prevBullet = parseBullet(prev[prev.length - 1]);
+          const prevContentLen = prevBullet ? prevBullet.text.length : prev[prev.length - 1].length;
+          setCaretPos(Math.min(pos, prevContentLen));
           setActive({ sheet: s - 1, line: prev.length - 1 });
         }
         return;
@@ -813,12 +840,17 @@ function DocEditor() {
       if (e.key === "ArrowDown") {
         if (safeActive < lines.length - 1) {
           e.preventDefault();
-          setCaretPos(Math.min(pos, lines[safeActive + 1].length));
+          const nextLine = lines[safeActive + 1];
+          const nextBullet = parseBullet(nextLine);
+          const nextContentLen = nextBullet ? nextBullet.text.length : nextLine.length;
+          setCaretPos(Math.min(pos, nextContentLen));
           setActive({ sheet: s, line: safeActive + 1 });
         } else if (s < sheets.length - 1) {
           e.preventDefault();
           const nextLines = sheetLines(s + 1);
-          setCaretPos(Math.min(pos, nextLines[0].length));
+          const nextBullet = parseBullet(nextLines[0]);
+          const nextContentLen = nextBullet ? nextBullet.text.length : nextLines[0].length;
+          setCaretPos(Math.min(pos, nextContentLen));
           setActive({ sheet: s + 1, line: 0 });
         }
         return;
@@ -826,12 +858,15 @@ function DocEditor() {
       if (e.key === "ArrowLeft" && pos === 0) {
         if (safeActive > 0) {
           e.preventDefault();
-          setCaretPos(lines[safeActive - 1].length);
+          const prev = lines[safeActive - 1];
+          const prevBullet = parseBullet(prev);
+          setCaretPos(prevBullet ? prevBullet.text.length : prev.length);
           setActive({ sheet: s, line: safeActive - 1 });
         } else if (s > 0) {
           e.preventDefault();
           const prev = sheetLines(s - 1);
-          setCaretPos(prev[prev.length - 1].length);
+          const prevBullet = parseBullet(prev[prev.length - 1]);
+          setCaretPos(prevBullet ? prevBullet.text.length : prev[prev.length - 1].length);
           setActive({ sheet: s - 1, line: prev.length - 1 });
         }
         return;
@@ -854,7 +889,7 @@ function DocEditor() {
         const after = val.slice(pos);
         const nextVal = before + "\t" + after;
         const next = [...lines];
-        next[safeActive] = nextVal.replace(/\r?\n/g, SOFT_BREAK);
+        next[safeActive] = (prefix + nextVal).replace(/\r?\n/g, SOFT_BREAK);
         // The active line's DOM is only reset when its line key changes, so
         // write the new text directly and restore the caret after the tab.
         el.textContent = nextVal;
@@ -893,29 +928,61 @@ function DocEditor() {
           }
         }}
       >
-        {lines.map((line, i) =>
-          isActiveSheet && i === safeActive ? (
+        {lines.map((line, i) => {
+          const bullet = parseBullet(line);
+          const prefix = bullet ? bulletPrefix(bullet) : "";
+          const editText = bullet ? bullet.text : line;
+          const indentUnits = bullet
+            ? Math.floor(bullet.indent.replace(/\t/g, "    ").length / 2)
+            : 0;
+          return isActiveSheet && i === safeActive ? (
             <div
               key={`active-${s}-${i}`}
-              data-sheet-idx={s}
-              data-line-idx={i}
-              ref={(el) => {
-                inputRef.current = el;
-                if (!el) return;
-                const lineKey = `${s}:${i}`;
-                if (el.dataset.lineKey !== lineKey) {
-                  const dom = softToDom(line);
-                  el.textContent = dom.endsWith("\n") ? dom + "\n" : dom;
-                  el.dataset.lineKey = lineKey;
+              className="flex items-start"
+            >
+              <span
+                className="inline-block"
+                style={{ width: `${indentUnits * 1.5}rem` }}
+              />
+              <span
+                className={`inline-block w-[14px] text-muted-foreground select-none ${!bullet ? "opacity-0" : ""}`}
+              >
+                •
+              </span>
+              <div
+                data-sheet-idx={s}
+                data-line-idx={i}
+                ref={(el) => {
+                  inputRef.current = el;
+                  if (!el) return;
+                  const lineKey = `${s}:${i}`;
+                  const desired = softToDom(editText);
+                  const desiredText = desired.endsWith("\n") ? desired + "\n" : desired;
+                  if (el.dataset.lineKey !== lineKey) {
+                    el.textContent = desiredText;
+                    el.dataset.lineKey = lineKey;
+                  } else if (
+                    bullet &&
+                    el.textContent &&
+                    el.textContent.startsWith(bulletPrefix(bullet)) &&
+                    el.textContent !== desiredText
+                  ) {
+                    const prefix = bulletPrefix(bullet);
+                    const caret = getCaretInEl(el);
+                    el.textContent = desiredText;
+                    setCaretInEl(el, Math.max(0, caret - prefix.length));
+                  }
+                }}
+                contentEditable={!selMode}
+                suppressContentEditableWarning
+                onInput={(e) =>
+                  onLineChange(prefix + (e.currentTarget.textContent ?? ""))
                 }
-              }}
-              contentEditable={!selMode}
-              suppressContentEditableWarning
-              onInput={(e) => onLineChange(e.currentTarget.textContent ?? "")}
-              onKeyDown={onKeyDown}
-              className={`block w-full outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem] [tab-size:4] ${lineEditClass(line)}`}
-              spellCheck={false}
-            />
+                onKeyDown={onKeyDown}
+                className={`block flex-1 outline-none my-0 whitespace-pre-wrap break-words min-h-[1.25rem] [tab-size:4] ${lineEditClass(line)}`}
+                spellCheck={false}
+              />
+            </div>
           ) : (
             <div
               key={i}
@@ -930,8 +997,8 @@ function DocEditor() {
                   .join("<br />"),
               }}
             />
-          ),
-        )}
+          )
+        })}
 
         <div
           className="absolute bottom-3 left-3 opacity-0 hover:opacity-100 transition-opacity p-2 -m-2"
