@@ -149,11 +149,13 @@ function TabItem({
   isActive,
   onSelect,
   onRename,
+  onDelete,
 }: {
   name: string;
   isActive: boolean;
   onSelect: () => void;
   onRename: (newName: string) => void;
+  onDelete: () => void;
 }) {
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(name);
@@ -202,23 +204,40 @@ function TabItem({
   }
 
   return (
-    <button
-      onClick={() => {
-        if (isActive) setEditing(true);
-        else onSelect();
-      }}
-      onDoubleClick={() => setEditing(true)}
-      className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
-        isActive
-          ? "bg-accent text-accent-foreground font-medium"
-          : "hover:bg-muted text-muted-foreground"
-      }`}
-      title="Click active tab or double-click to rename"
-    >
-      {name}
-    </button>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          onClick={() => {
+            if (isActive) setEditing(true);
+            else onSelect();
+          }}
+          onDoubleClick={() => setEditing(true)}
+          className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
+            isActive
+              ? "bg-accent text-accent-foreground font-medium"
+              : "hover:bg-muted text-muted-foreground"
+          }`}
+          title="Click active tab or double-click to rename"
+        >
+          {name}
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          onClick={() => {
+            if (window.confirm(`Delete "${name}"? This cannot be undone.`)) {
+              onDelete();
+            }
+          }}
+          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+        >
+          Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
+
 
 function Grid4Icon({ className }: { className?: string }) {
   return (
