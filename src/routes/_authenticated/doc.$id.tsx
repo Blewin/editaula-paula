@@ -1269,8 +1269,10 @@ function DocEditor() {
                     isActive={i === activeTab}
                     onSelect={() => switchTab(i)}
                     onRename={(newName) => renameTab(i, newName)}
+                    onDelete={() => deleteTab(i)}
                   />
                 ))}
+
               </nav>
             </aside>
           )}
