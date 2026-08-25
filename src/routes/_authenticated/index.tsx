@@ -232,9 +232,10 @@ function Browser() {
       <div className="flex-1 min-w-0">
         <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
           <div className="px-6 py-4 flex items-center justify-between gap-4">
-            <div />
-            <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <Link to="/" className="shrink-0">
+                <img src={editaulaMark} alt="Editaula" className="h-7 w-auto" />
+              </Link>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -252,7 +253,9 @@ function Browser() {
               <Button variant="outline" size="sm" onClick={() => downloadBackup(items, views)}>
                 <Download className="size-4" /> Download
               </Button>
-
+            </div>
+            <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
+            <div className="flex items-center gap-2">
               <UserMenu />
             </div>
           </div>
