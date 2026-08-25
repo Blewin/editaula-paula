@@ -233,8 +233,9 @@ function Browser() {
         <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Link to="/" className="shrink-0">
-                <img src={editaulaMark} alt="Editaula" className="h-7 w-auto" />
+              <Link to="/" className="shrink-0 flex items-center gap-2">
+                <img src={editaulaMark} alt="Editaula" className="h-8 w-auto" />
+                <span className="text-xl font-semibold">Editaula</span>
               </Link>
               <input
                 ref={fileInputRef}
@@ -254,7 +255,6 @@ function Browser() {
                 <Download className="size-4" /> Download
               </Button>
             </div>
-            <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
             <div className="flex items-center gap-2">
               <UserMenu />
             </div>
