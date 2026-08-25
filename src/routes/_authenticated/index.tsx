@@ -1,8 +1,7 @@
 import * as React from "react";
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X, LogOut, Download, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import editaulaMark from "@/assets/editaula-mark.png";
 
 import {
   addItemToView,
@@ -232,11 +231,9 @@ function Browser() {
       <div className="flex-1 min-w-0">
         <header className="border-b sticky top-0 z-10 bg-background/80 backdrop-blur">
           <div className="px-6 py-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Link to="/" className="shrink-0 flex items-center gap-2">
-                <img src={editaulaMark} alt="Editaula" className="h-8 w-auto" />
-                <span className="text-xl font-semibold">Editaula</span>
-              </Link>
+            <div />
+            <h1 className="text-xl font-semibold absolute left-1/2 -translate-x-1/2">Editaula</h1>
+            <div className="flex items-center gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -254,8 +251,7 @@ function Browser() {
               <Button variant="outline" size="sm" onClick={() => downloadBackup(items, views)}>
                 <Download className="size-4" /> Download
               </Button>
-            </div>
-            <div className="flex items-center gap-2">
+
               <UserMenu />
             </div>
           </div>
