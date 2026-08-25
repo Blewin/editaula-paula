@@ -4,6 +4,13 @@ import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus, Trash2 } from 
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderLine, lineEditClass } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+
 
 type DocSearch = { view?: string; folder?: string };
 
@@ -142,11 +149,13 @@ function TabItem({
   isActive,
   onSelect,
   onRename,
+  onDelete,
 }: {
   name: string;
   isActive: boolean;
   onSelect: () => void;
   onRename: (newName: string) => void;
+  onDelete: () => void;
 }) {
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(name);
@@ -195,23 +204,40 @@ function TabItem({
   }
 
   return (
-    <button
-      onClick={() => {
-        if (isActive) setEditing(true);
-        else onSelect();
-      }}
-      onDoubleClick={() => setEditing(true)}
-      className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
-        isActive
-          ? "bg-accent text-accent-foreground font-medium"
-          : "hover:bg-muted text-muted-foreground"
-      }`}
-      title="Click active tab or double-click to rename"
-    >
-      {name}
-    </button>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          onClick={() => {
+            if (isActive) setEditing(true);
+            else onSelect();
+          }}
+          onDoubleClick={() => setEditing(true)}
+          className={`text-left text-sm px-3 py-2 rounded-md truncate transition-colors ${
+            isActive
+              ? "bg-accent text-accent-foreground font-medium"
+              : "hover:bg-muted text-muted-foreground"
+          }`}
+          title="Click active tab or double-click to rename"
+        >
+          {name}
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          onClick={() => {
+            if (window.confirm(`Delete "${name}"? This cannot be undone.`)) {
+              onDelete();
+            }
+          }}
+          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+        >
+          Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
+
 
 function Grid4Icon({ className }: { className?: string }) {
   return (
@@ -329,6 +355,18 @@ function DocEditor() {
     next[idx] = { ...next[idx], name: newName };
     setTabs(next);
   };
+
+  const deleteTab = (idx: number) => {
+    if (tabs.length <= 1) return;
+    const next = tabs.filter((_, i) => i !== idx);
+    setTabs(next);
+    const newActive = Math.min(activeTab, next.length - 1);
+    setActiveTab(newActive);
+    setSheets(splitSheets(next[newActive]?.content ?? ""));
+    setActive({ sheet: 0, line: 0 });
+    setCaretPos(0);
+  };
+
 
   const addSheet = () => {
     // In grid mode, add two pages at a time to keep the 2-col layout balanced.
@@ -1231,8 +1269,10 @@ function DocEditor() {
                     isActive={i === activeTab}
                     onSelect={() => switchTab(i)}
                     onRename={(newName) => renameTab(i, newName)}
+                    onDelete={() => deleteTab(i)}
                   />
                 ))}
+
               </nav>
             </aside>
           )}
