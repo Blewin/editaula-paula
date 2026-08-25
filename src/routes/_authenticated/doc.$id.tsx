@@ -356,6 +356,18 @@ function DocEditor() {
     setTabs(next);
   };
 
+  const deleteTab = (idx: number) => {
+    if (tabs.length <= 1) return;
+    const next = tabs.filter((_, i) => i !== idx);
+    setTabs(next);
+    const newActive = Math.min(activeTab, next.length - 1);
+    setActiveTab(newActive);
+    setSheets(splitSheets(next[newActive]?.content ?? ""));
+    setActive({ sheet: 0, line: 0 });
+    setCaretPos(0);
+  };
+
+
   const addSheet = () => {
     // In grid mode, add two pages at a time to keep the 2-col layout balanced.
     const toAdd = pageLayout === "grid" ? 2 : 1;
