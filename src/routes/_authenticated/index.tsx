@@ -237,9 +237,15 @@ function Browser() {
                   <MoreVertical className="size-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onSelect={() => alert("Settings coming soon")}>
-                  Settings
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem
+                  onSelect={() => fileInputRef.current?.click()}
+                  disabled={isStarred}
+                >
+                  <Upload className="size-4 mr-2" /> Upload
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => downloadBackup(items, views)}>
+                  <Download className="size-4 mr-2" /> Download
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -256,12 +262,6 @@ function Browser() {
                   e.target.value = "";
                 }}
               />
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isStarred}>
-                <Upload className="size-4" /> Upload
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => downloadBackup(items, views)}>
-                <Download className="size-4" /> Download
-              </Button>
 
               <UserMenu />
             </div>
