@@ -1,7 +1,8 @@
 import * as React from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, Star, Plus, Home, X, LogOut, Download, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import editaulaMark from "@/assets/editaula-mark.png";
 
 import {
   addItemToView,
