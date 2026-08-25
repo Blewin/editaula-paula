@@ -4,6 +4,13 @@ import { AlignJustify, ArrowLeft, CornerDownLeft, FileText, Plus, Trash2 } from 
 import { getItem, updateItem, useItems, type Item } from "@/lib/storage";
 import { renderLine, lineEditClass } from "@/lib/markdown";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+
 
 type DocSearch = { view?: string; folder?: string };
 
