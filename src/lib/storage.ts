@@ -296,7 +296,7 @@ export async function createDocWithContent(
   return id;
 }
 
-export function createFolder(parentId: string | null, name = "New folder"): string {
+export function createFolder(parentId: string | null, name = "New folder", viewId?: string): string {
   const id = genId();
   if (!_currentUserId) return id;
   const color = FOLDER_COLORS[0];
@@ -305,13 +305,22 @@ export function createFolder(parentId: string | null, name = "New folder"): stri
     id, type: "folder", name, parentId, color, updatedAt: Date.now(), starred: false,
   };
   _items = [..._items, newItem];
+  if (viewId) {
+    _views = _views.map((x) =>
+      x.id === viewId && !x.itemIds.includes(id) ? { ...x, itemIds: [...x.itemIds, id] } : x,
+    );
+  }
   notify();
   void supabase.from("items").insert({
     id, user_id: _currentUserId, type: "folder", name, parent_id: parentId,
     color, position,
-  }).then(({ error }) => { if (error) console.error(error); });
+  }).then(({ error }) => {
+    if (error) { console.error(error); return; }
+    if (viewId) void persistViewItem(viewId, id);
+  });
   return id;
 }
+
 
 export function updateItem(id: string, patch: Partial<Item>) {
   const idx = _items.findIndex((i) => i.id === id);
