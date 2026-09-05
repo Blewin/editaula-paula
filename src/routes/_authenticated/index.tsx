@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, MoreVertical, Star, Plus, X, LogOut, Download, Upload, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { randomBirdName } from "@/lib/birds";
 
 import {
   addItemToView,
