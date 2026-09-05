@@ -129,7 +129,7 @@ function Browser() {
         : ({} as Record<string, never>);
 
   const handleNewDoc = () => {
-    const id = createDoc(currentFolder, "Untitled", activeView?.id);
+    const id = createDoc(currentFolder, randomBirdName(), activeView?.id);
     navigate({ to: "/doc/$id", params: { id }, search: backSearch });
   };
 
