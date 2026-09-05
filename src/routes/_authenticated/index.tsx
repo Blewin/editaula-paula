@@ -129,15 +129,14 @@ function Browser() {
         : ({} as Record<string, never>);
 
   const handleNewDoc = () => {
-    const id = createDoc(currentFolder);
-    if (activeView) addItemToView(activeView.id, id);
+    const id = createDoc(currentFolder, "Untitled", activeView?.id);
     navigate({ to: "/doc/$id", params: { id }, search: backSearch });
   };
 
   const handleNewFolder = () => {
-    const id = createFolder(currentFolder);
-    if (activeView) addItemToView(activeView.id, id);
+    createFolder(currentFolder, "New folder", activeView?.id);
   };
+
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
