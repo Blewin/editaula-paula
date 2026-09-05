@@ -196,7 +196,7 @@ function Browser() {
             {views.map((v) => (
               <ViewButton
                 key={v.id}
-                icon={<Folder className="size-4" />}
+                icon={<Eye className="size-4" />}
                 label={v.name}
                 active={view === v.id}
                 onClick={() => navigate({ to: "/", search: { view: v.id } })}
