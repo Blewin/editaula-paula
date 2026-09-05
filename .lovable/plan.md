@@ -1,43 +1,18 @@
-# Google login + cloud-synced data
+# New folder / new document appear in the current view
 
-## 1. Enable Lovable Cloud + Google sign-in
-- Enable Lovable Cloud (provisions auth + DB).
-- Configure Google as a social auth provider.
-- Gate the app behind login:
-  - Move `src/routes/index.tsx` and `src/routes/doc.$id.tsx` under `src/routes/_authenticated/` (the managed layout redirects unauthenticated users to `/auth`).
-  - Add a small `/auth` page with a single "Continue with Google" button using the Lovable broker (`lovable.auth.signInWithOAuth("google", ...)`).
-- Add a user menu (avatar + name from Google) in the home header with a "Sign out" action that clears the query cache and navigates to `/auth`.
+Both options are possible. Option one is already the intended design — the buttons in the left panel already try to add the new item to the view you are in — but the membership is not saved reliably, so the item can vanish from the view. The fix is to make that save reliable, and (optionally) also add the two icons next to the view name.
 
-## 2. Database schema (per-user)
-Three tables, all RLS-scoped to `auth.uid()`:
+## What will change
 
-- `items` — replaces today's `Item` type
-  - `id uuid pk`, `user_id uuid references auth.users on delete cascade`
-  - `type text check (type in ('doc','folder'))`
-  - `name text`, `parent_id uuid null references items(id) on delete cascade`
-  - `content text` (docs only), `color text` (folders only)
-  - `starred bool default false`, `position int`, `updated_at timestamptz default now()`
-- `views` — `id`, `user_id`, `name`, `created_at`
-- `view_items` — `view_id`, `item_id`, `position` (composite PK)
-
-Standard grants (`authenticated` + `service_role`), RLS enabled, policies: users can CRUD only rows where `user_id = auth.uid()` (and for `view_items`, only when the parent view belongs to them).
-
-## 3. Replace `src/lib/storage.ts`
-Rewrite the module to talk to Supabase instead of `localStorage`, keeping the same exported API surface so routes don't need rewrites:
-- `useItems()`, `useViews()` → TanStack Query hooks (`useQuery`) subscribed to the current user.
-- `createDoc/createFolder/updateItem/deleteItem/reorderItem` → Supabase mutations + `queryClient.invalidateQueries`.
-- `getItem`, `getBreadcrumb` → async; doc route already loads via state, will be adapted.
-- View functions (`createView/updateView/deleteView/addItemToView/removeItemFromView`) → Supabase.
-- `FOLDER_COLORS` constant stays as-is.
-
-No automatic migration from localStorage — users start fresh in the cloud (their previous local data remains in the browser but is not shown).
-
-## 4. Route adjustments
-- `doc.$id.tsx`: load doc via `useQuery`, save via mutation (debounced as today).
-- `index.tsx`: same UI; data comes from the new hooks.
-- Back-button "fromView/fromFolder" behavior preserved.
+1. When a view is open and you press New folder or New document, the item appears in that view immediately and stays there after a refresh.
+2. Small New folder and New document icons appear next to the view's name in the header, doing exactly the same thing (handy when you are deep in a view).
+3. Inside Home or a normal folder nothing changes: items are just created there.
+4. Starred stays as-is (nothing new can be created there, since starring is what puts things in it).
 
 ## Technical notes
-- All DB writes happen client-side via the browser Supabase client; RLS enforces ownership (no server functions needed).
-- Realtime sync across tabs/devices: subscribe to `items` and `views` changes for the current user and invalidate queries.
-- No profiles table (per your answer — Google name/avatar read from the auth session).
+
+Cause of the current unreliability (confirmed in the code and database schema): `handleNewDoc` / `handleNewFolder` call `createDoc` / `createFolder`, which insert into `items` as fire-and-forget, then immediately call `addItemToView`, which inserts into `view_items`. `view_items.item_id` has a foreign key to `items(id)`, so the membership insert can hit the database before the item row exists and fail with a foreign-key violation. The optimistic local state looks right until a realtime refetch or reload drops it.
+
+Changes:
+- `src/lib/storage.ts`: give `createDoc` and `createFolder` awaitable variants (or return the insert promise), following the existing `createDocWithContent` pattern that already awaits the item insert before writing `view_items`. Add an `addItemToView` call that runs only after the item insert resolves.
+- `src/routes/_authenticated/index.tsx`: make `handleNewDoc` / `handleNewFolder` async and pass `activeView?.id` down, so view membership is created in one ordered operation; keep the optimistic local update so the tile shows instantly. Add the two icon buttons next to the view title, reusing the same handlers.
