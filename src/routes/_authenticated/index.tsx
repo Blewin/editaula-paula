@@ -182,13 +182,13 @@ function Browser() {
           </div>
           <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
             <ViewButton
-              icon={<Home className="size-4" />}
+              icon={<Eye className="size-4" />}
               label="Home"
               active={!isStarred && !currentFolder}
               onClick={() => navigate({ to: "/", search: {} })}
             />
             <ViewButton
-              icon={<Star className="size-4" style={{ fill: "currentColor", fillOpacity: 0.3 }} />}
+              icon={<Eye className="size-4" />}
               label="Starred"
               active={isStarred}
               onClick={() => navigate({ to: "/", search: { view: "starred" } })}
