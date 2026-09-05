@@ -228,7 +228,7 @@ function genId(): string {
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export function createDoc(parentId: string | null, name = "Untitled"): string {
+export function createDoc(parentId: string | null, name = "Untitled", viewId?: string): string {
   const id = genId();
   if (!_currentUserId) return id;
   const content = "";
@@ -237,13 +237,31 @@ export function createDoc(parentId: string | null, name = "Untitled"): string {
     id, type: "doc", name, parentId, content, updatedAt: Date.now(), starred: false,
   };
   _items = [..._items, newItem];
+  if (viewId) {
+    _views = _views.map((x) =>
+      x.id === viewId && !x.itemIds.includes(id) ? { ...x, itemIds: [...x.itemIds, id] } : x,
+    );
+  }
   notify();
   void supabase.from("items").insert({
     id, user_id: _currentUserId, type: "doc", name, parent_id: parentId,
     content, position,
-  }).then(({ error }) => { if (error) console.error(error); });
+  }).then(({ error }) => {
+    if (error) { console.error(error); return; }
+    if (viewId) void persistViewItem(viewId, id);
+  });
   return id;
 }
+
+/** Persist a view membership row (assumes the item row already exists). */
+async function persistViewItem(viewId: string, itemId: string) {
+  if (!_currentUserId) return;
+  const { error } = await supabase.from("view_items").insert({
+    view_id: viewId, item_id: itemId, user_id: _currentUserId, position: Date.now(),
+  });
+  if (error) console.error(error);
+}
+
 
 /** Create a doc with initial content, awaiting the DB write (and optional view membership). */
 export async function createDocWithContent(
