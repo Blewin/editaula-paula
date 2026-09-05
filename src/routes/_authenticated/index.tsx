@@ -278,7 +278,28 @@ function Browser() {
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
               <Eye className="size-6" />
               <span className="text-foreground">{activeView!.name}</span>
+              <div className="flex items-center gap-1 ml-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="New folder in this view"
+                  title="New folder in this view"
+                  onClick={handleNewFolder}
+                >
+                  <FolderPlus className="size-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="New document in this view"
+                  title="New document in this view"
+                  onClick={handleNewDoc}
+                >
+                  <FilePlus2 className="size-5" />
+                </Button>
+              </div>
             </nav>
+
           ) : (
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
               {trail.map((b, i) => (
