@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, MoreVertical, Star, Plus, Home, X, LogOut, Download, Upload } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, MoreVertical, Star, Plus, X, LogOut, Download, Upload, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 import {
@@ -182,13 +182,13 @@ function Browser() {
           </div>
           <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
             <ViewButton
-              icon={<Home className="size-4" />}
+              icon={<Eye className="size-4" />}
               label="Home"
               active={!isStarred && !currentFolder}
               onClick={() => navigate({ to: "/", search: {} })}
             />
             <ViewButton
-              icon={<Star className="size-4" style={{ fill: "currentColor", fillOpacity: 0.3 }} />}
+              icon={<Eye className="size-4" />}
               label="Starred"
               active={isStarred}
               onClick={() => navigate({ to: "/", search: { view: "starred" } })}
@@ -196,7 +196,7 @@ function Browser() {
             {views.map((v) => (
               <ViewButton
                 key={v.id}
-                icon={<Folder className="size-4" />}
+                icon={<Eye className="size-4" />}
                 label={v.name}
                 active={view === v.id}
                 onClick={() => navigate({ to: "/", search: { view: v.id } })}
