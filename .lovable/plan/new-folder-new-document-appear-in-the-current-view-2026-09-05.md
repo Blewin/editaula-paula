@@ -14,5 +14,7 @@ Both options are possible. Option one is already the intended design — the but
 Cause of the current unreliability (confirmed in the code and database schema): `handleNewDoc` / `handleNewFolder` call `createDoc` / `createFolder`, which insert into `items` as fire-and-forget, then immediately call `addItemToView`, which inserts into `view_items`. `view_items.item_id` has a foreign key to `items(id)`, so the membership insert can hit the database before the item row exists and fail with a foreign-key violation. The optimistic local state looks right until a realtime refetch or reload drops it.
 
 Changes:
+
 - `src/lib/storage.ts`: give `createDoc` and `createFolder` awaitable variants (or return the insert promise), following the existing `createDocWithContent` pattern that already awaits the item insert before writing `view_items`. Add an `addItemToView` call that runs only after the item insert resolves.
-- `src/routes/_authenticated/index.tsx`: make `handleNewDoc` / `handleNewFolder` async and pass `activeView?.id` down, so view membership is created in one ordered operation; keep the optimistic local update so the tile shows instantly. Add the two icon buttons next to the view title, reusing the same handlers.
+- `src/routes/_authenticated/index.tsx`: make `handleNewDoc` / `handleNewFolder` async and pass `activeView?.id` down, so view membership is created in one ordered operation; keep the optimistic local update so the tile shows instantly. Add the two icon buttons next to the view title, reusing the same handlers.  
+  
