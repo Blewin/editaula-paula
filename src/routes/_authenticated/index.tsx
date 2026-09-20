@@ -721,7 +721,7 @@ function Tile({
       }}
       
       onClick={onActivate}
-      className={`group relative cursor-pointer border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col ${item.type === "folder" ? "h-10 rounded-lg justify-center" : "h-[270px] rounded-xl"} ${
+      className={`group relative cursor-pointer border bg-card hover:shadow-md transition-all overflow-hidden flex flex-col ${item.type === "folder" ? "h-10 rounded-lg justify-center" : "h-[270px] rounded-xl"} ${
         isDragging ? "opacity-40" : ""
       } ${dropIndicator === "before" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:-4px_0_0_0_var(--primary)]" : ""} ${dropIndicator === "after" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:4px_0_0_0_var(--primary)]" : ""}`}
     >
