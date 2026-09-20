@@ -409,38 +409,74 @@ function Browser() {
             </div>
 
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-              {visible.map((item) => (
-                <Tile
-                  key={item.id}
-                  item={item}
-                  isDragging={dragId === item.id}
-                  dropIndicator={dropTarget?.id === item.id ? dropTarget.position : null}
-                  onDragStart={() => setDragId(item.id)}
-                  onDragEnd={() => {
-                    setDragId(null);
-                    setDropTarget(null);
-                  }}
-                  onDragOverTile={(pos) => {
-                    if (dragId && dragId !== item.id) {
-                      setDropTarget({ id: item.id, position: pos });
-                    }
-                  }}
-                  onDropTile={() => {
-                    if (dragId && dragId !== item.id) {
-                      reorderItem(dragId, item.id, dropTarget?.position ?? "before");
-                    }
-                    setDragId(null);
-                    setDropTarget(null);
-                  }}
-                  onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
-                  onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id }, search: backSearch })}
-                  views={views}
-                  activeViewId={activeView?.id}
-                />
-
-              ))}
-            </div>
+            <>
+              {folders.length > 0 && (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+                  {folders.map((item) => (
+                    <Tile
+                      key={item.id}
+                      item={item}
+                      isDragging={dragId === item.id}
+                      dropIndicator={dropTarget?.id === item.id ? dropTarget.position : null}
+                      onDragStart={() => setDragId(item.id)}
+                      onDragEnd={() => {
+                        setDragId(null);
+                        setDropTarget(null);
+                      }}
+                      onDragOverTile={(pos) => {
+                        if (dragId && dragId !== item.id) {
+                          setDropTarget({ id: item.id, position: pos });
+                        }
+                      }}
+                      onDropTile={() => {
+                        if (dragId && dragId !== item.id) {
+                          reorderItem(dragId, item.id, dropTarget?.position ?? "before");
+                        }
+                        setDragId(null);
+                        setDropTarget(null);
+                      }}
+                      onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
+                      onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id }, search: backSearch })}
+                      views={views}
+                      activeViewId={activeView?.id}
+                    />
+                  ))}
+                </div>
+              )}
+              {docs.length > 0 && (
+                <div className={`grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 ${folders.length > 0 ? "mt-4" : ""}`}>
+                  {docs.map((item) => (
+                    <Tile
+                      key={item.id}
+                      item={item}
+                      isDragging={dragId === item.id}
+                      dropIndicator={dropTarget?.id === item.id ? dropTarget.position : null}
+                      onDragStart={() => setDragId(item.id)}
+                      onDragEnd={() => {
+                        setDragId(null);
+                        setDropTarget(null);
+                      }}
+                      onDragOverTile={(pos) => {
+                        if (dragId && dragId !== item.id) {
+                          setDropTarget({ id: item.id, position: pos });
+                        }
+                      }}
+                      onDropTile={() => {
+                        if (dragId && dragId !== item.id) {
+                          reorderItem(dragId, item.id, dropTarget?.position ?? "before");
+                        }
+                        setDragId(null);
+                        setDropTarget(null);
+                      }}
+                      onOpenFolder={(id) => navigate({ to: "/", search: { folder: id } })}
+                      onOpenDoc={(id) => navigate({ to: "/doc/$id", params: { id }, search: backSearch })}
+                      views={views}
+                      activeViewId={activeView?.id}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
