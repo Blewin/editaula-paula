@@ -196,7 +196,6 @@ function Browser() {
             <ViewButton
               icon={<Home className="size-4" />}
               label="Home"
-              active={!isStarred && !currentFolder}
               onClick={() => navigate({ to: "/", search: {} })}
             />
             <ViewButton
