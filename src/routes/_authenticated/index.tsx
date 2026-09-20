@@ -92,6 +92,16 @@ function downloadBackup(items: Item[], views: View[]) {
 }
 
 export const Route = createFileRoute("/_authenticated/")({
+  head: () => ({
+    meta: [
+      { title: "Documents | Editaula" },
+      { name: "description", content: "Organize folders, views, and documents in Editaula." },
+      { property: "og:title", content: "Documents | Editaula" },
+      { property: "og:description", content: "Organize folders, views, and documents in Editaula." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>): Search => ({
     folder: typeof s.folder === "string" ? s.folder : undefined,
     view: typeof s.view === "string" ? s.view : undefined,
