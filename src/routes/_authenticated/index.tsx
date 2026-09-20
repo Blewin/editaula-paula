@@ -221,7 +221,7 @@ function Browser() {
             ))}
             <button
               onClick={handleAddView}
-              className="w-full mt-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="w-full mt-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm text-muted-foreground border border-border/60 bg-muted/40 hover:bg-accent hover:text-foreground hover:border-border shadow-sm transition-colors"
             >
               <Plus className="size-4" /> New view
             </button>
