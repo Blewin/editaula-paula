@@ -328,14 +328,6 @@ function Browser() {
                   <p className="mb-4">
                     {isCustomView ? "This view is empty." : "This folder is empty."}
                   </p>
-                  <div className="flex justify-center gap-2">
-                    <Button variant="outline" onClick={handleNewFolder}>
-                      <FolderPlus /> New folder
-                    </Button>
-                    <Button onClick={handleNewDoc}>
-                      <FilePlus2 /> New document
-                    </Button>
-                  </div>
                 </>
               )}
             </div>
