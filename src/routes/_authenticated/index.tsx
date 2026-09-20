@@ -471,6 +471,13 @@ function ViewButton({
   onEditChange,
   onEditCommit,
   onEditCancel,
+  draggable,
+  isDragging,
+  dropBefore,
+  onDragStartView,
+  onDragOverView,
+  onDropView,
+  onDragEndView,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -483,10 +490,38 @@ function ViewButton({
   onEditChange?: (name: string) => void;
   onEditCommit?: () => void;
   onEditCancel?: () => void;
+  draggable?: boolean;
+  isDragging?: boolean;
+  dropBefore?: boolean;
+  onDragStartView?: () => void;
+  onDragOverView?: () => void;
+  onDropView?: () => void;
+  onDragEndView?: () => void;
 }) {
   return (
     <div
+      draggable={draggable && !isEditing}
+      onDragStart={(e) => {
+        if (!draggable) return;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", label);
+        onDragStartView?.();
+      }}
+      onDragOver={(e) => {
+        if (!onDragOverView) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        onDragOverView();
+      }}
+      onDrop={(e) => {
+        if (!onDropView) return;
+        e.preventDefault();
+        onDropView();
+      }}
+      onDragEnd={() => onDragEndView?.()}
       className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm cursor-pointer transition-colors ${
+        isDragging ? "opacity-40" : ""
+      } ${dropBefore ? "ring-1 ring-primary/60" : ""} ${
         active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
       onClick={onClick}
