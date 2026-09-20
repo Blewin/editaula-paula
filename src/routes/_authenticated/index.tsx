@@ -119,11 +119,20 @@ function Browser() {
   const activeView = view && view !== "starred" ? views.find((v) => v.id === view) : undefined;
   const isCustomView = !!activeView;
   const trail = React.useMemo(() => getBreadcrumb(currentFolder), [items, currentFolder]);
-  const visible = isStarred
+  const base = isStarred
     ? items.filter((i) => i.starred)
     : isCustomView
     ? items.filter((i) => activeView!.itemIds.includes(i.id))
     : items.filter((i) => i.parentId === currentFolder);
+  const visible = React.useMemo(() => {
+    const folders = base
+      .filter((i) => i.type === "folder")
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    const docs = base
+      .filter((i) => i.type !== "folder")
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...folders, ...docs];
+  }, [base]);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [dropTarget, setDropTarget] = React.useState<{ id: string; position: "before" | "after" } | null>(null);
   
