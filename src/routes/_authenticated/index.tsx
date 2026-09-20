@@ -517,7 +517,7 @@ function ViewButton({
 }: {
   icon: React.ReactNode;
   label: string;
-  active: boolean;
+  active?: boolean;
   onClick: () => void;
   onDelete?: () => void;
   isEditing?: boolean;
