@@ -272,8 +272,7 @@ function Browser() {
         <main className="mx-auto max-w-6xl px-6 py-6">
           {isStarred ? (
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
-              <Home className="size-4" />
-              <span className="text-foreground">Starred</span>
+              <Star className="size-6" />
               <span className="text-foreground">Starred</span>
             </nav>
           ) : isCustomView ? (
