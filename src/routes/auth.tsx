@@ -6,6 +6,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Sign in | Editaula" },
+      { name: "description", content: "Sign in to access your Editaula documents." },
+      { property: "og:title", content: "Sign in | Editaula" },
+      { property: "og:description", content: "Sign in to access your Editaula documents." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AuthPage,
 });
 

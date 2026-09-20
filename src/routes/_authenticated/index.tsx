@@ -92,6 +92,16 @@ function downloadBackup(items: Item[], views: View[]) {
 }
 
 export const Route = createFileRoute("/_authenticated/")({
+  head: () => ({
+    meta: [
+      { title: "Documents | Editaula" },
+      { name: "description", content: "Organize folders, views, and documents in Editaula." },
+      { property: "og:title", content: "Documents | Editaula" },
+      { property: "og:description", content: "Organize folders, views, and documents in Editaula." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>): Search => ({
     folder: typeof s.folder === "string" ? s.folder : undefined,
     view: typeof s.view === "string" ? s.view : undefined,
@@ -668,14 +678,14 @@ function Tile({
       }}
       
       onClick={onActivate}
-      className={`group relative cursor-pointer rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col h-[270px] ${
+      className={`group relative cursor-pointer border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col ${item.type === "folder" ? "h-[72px] rounded-lg justify-center" : "h-[270px] rounded-xl"} ${
         isDragging ? "opacity-40" : ""
       } ${dropIndicator === "before" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:-4px_0_0_0_var(--primary)]" : ""} ${dropIndicator === "after" ? "ring-2 ring-primary ring-offset-2 ring-offset-background [box-shadow:4px_0_0_0_var(--primary)]" : ""}`}
     >
-      <div className={`px-2.5 py-1.5 flex items-center gap-1.5 z-10 ${item.type === "doc" ? "border-b" : ""}`}>
+      <div className={`flex items-center z-10 ${item.type === "folder" ? "px-3.5 py-3 gap-3" : "px-2.5 py-1.5 gap-1.5 border-b"}`}>
         {item.type === "folder" ? (
           <Folder
-            className="size-4 shrink-0"
+            className="size-8 shrink-0"
             style={{ color: item.color, fill: item.starred ? item.color : "none", fillOpacity: item.starred ? 0.25 : undefined }}
           />
         ) : (
@@ -814,84 +824,7 @@ function Tile({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {item.type === "folder" ? (
-        <FolderTile color={item.color} />
-      ) : (
-        <DocThumbnail content={item.content} />
-      )}
-    </div>
-  );
-}
-
-function shiftHue(hex: string, degrees: number, lightDelta = 0): string {
-  const m = hex.replace("#", "");
-  const r = parseInt(m.slice(0, 2), 16) / 255;
-  const g = parseInt(m.slice(2, 4), 16) / 255;
-  const b = parseInt(m.slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  let h = 0;
-  let s = 0;
-  const d = max - min;
-  if (d !== 0) {
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r:
-        h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
-        break;
-      case g:
-        h = ((b - r) / d + 2) * 60;
-        break;
-      default:
-        h = ((r - g) / d + 4) * 60;
-    }
-  }
-  const nh = (h + degrees + 360) % 360;
-  const nl = Math.max(0, Math.min(1, l + lightDelta));
-  return `hsl(${nh.toFixed(1)}, ${(s * 100).toFixed(1)}%, ${(nl * 100).toFixed(1)}%)`;
-}
-
-function getHue(hex: string): number {
-  const m = hex.replace("#", "");
-  const r = parseInt(m.slice(0, 2), 16) / 255;
-  const g = parseInt(m.slice(2, 4), 16) / 255;
-  const b = parseInt(m.slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const d = max - min;
-  if (d === 0) return 0;
-  let h = 0;
-  switch (max) {
-    case r: h = ((g - b) / d + (g < b ? 6 : 0)) * 60; break;
-    case g: h = ((b - r) / d + 2) * 60; break;
-    default: h = ((r - g) / d + 4) * 60;
-  }
-  return h;
-}
-
-function FolderTile({ color }: { color: string }) {
-  const hue = getHue(color);
-  // Yellows/ambers (~35-75°) blow out into near-white when lightened; dampen the contrast there.
-  const isYellow = hue >= 35 && hue <= 75;
-  const k = isYellow ? 0.4 : 1;
-  const warm = shiftHue(color, 25 * k, 0.08 * k);
-  const cool = shiftHue(color, -30 * k, -0.12 * k);
-  const overlayWarm = shiftHue(color, 40 * k, 0.15 * k);
-  const overlayCool = shiftHue(color, -50 * k, -0.18 * k);
-  return (
-    <div
-      className="flex-1 relative overflow-hidden"
-      style={{
-        background: `radial-gradient(130% 110% at 78% 18%, ${warm} 0%, ${color} 55%, ${cool} 100%)`,
-      }}
-    >
-      <div
-        className="absolute inset-0 mix-blend-overlay opacity-40"
-        style={{
-          background: `linear-gradient(160deg, ${overlayWarm} 0%, transparent 55%, ${overlayCool} 100%)`,
-        }}
-      />
+      {item.type === "doc" && <DocThumbnail content={item.content} />}
     </div>
   );
 }

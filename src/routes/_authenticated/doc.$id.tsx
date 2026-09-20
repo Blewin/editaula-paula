@@ -15,6 +15,16 @@ import {
 type DocSearch = { view?: string; folder?: string };
 
 export const Route = createFileRoute("/_authenticated/doc/$id")({
+  head: () => ({
+    meta: [
+      { title: "Document editor | Editaula" },
+      { name: "description", content: "Write and arrange your document in Editaula." },
+      { property: "og:title", content: "Document editor | Editaula" },
+      { property: "og:description", content: "Write and arrange your document in Editaula." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>): DocSearch => ({
     view: typeof s.view === "string" ? s.view : undefined,
     folder: typeof s.folder === "string" ? s.folder : undefined,
