@@ -119,6 +119,15 @@ function Browser() {
   
   const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
   const [editingViewName, setEditingViewName] = React.useState("");
+  const [renamingHeader, setRenamingHeader] = React.useState(false);
+  const [renamingHeaderName, setRenamingHeaderName] = React.useState("");
+
+  const commitHeaderRename = () => {
+    const trimmed = renamingHeaderName.trim();
+    setRenamingHeader(false);
+    if (!activeView || !trimmed || trimmed === activeView.name) return;
+    updateView(activeView.id, { name: trimmed });
+  };
   const [dragViewId, setDragViewId] = React.useState<string | null>(null);
   const [dropViewId, setDropViewId] = React.useState<string | null>(null);
 
@@ -303,7 +312,31 @@ function Browser() {
           ) : isCustomView ? (
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
               <Eye className="size-6" />
-              <span className="text-foreground">{activeView!.name}</span>
+              {renamingHeader ? (
+                <input
+                  autoFocus
+                  value={renamingHeaderName}
+                  onChange={(e) => setRenamingHeaderName(e.target.value)}
+                  onBlur={commitHeaderRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitHeaderRename();
+                    if (e.key === "Escape") setRenamingHeader(false);
+                  }}
+                  className="text-foreground bg-transparent outline-none border-b border-primary min-w-0 w-48"
+                />
+              ) : (
+                <span
+                  className="text-foreground cursor-text"
+                  title="Double-click to rename"
+                  onDoubleClick={() => {
+                    if (!activeView) return;
+                    setRenamingHeaderName(activeView.name);
+                    setRenamingHeader(true);
+                  }}
+                >
+                  {activeView!.name}
+                </span>
+              )}
               <div className="flex items-center gap-1 ml-1">
                 <Button
                   variant="ghost"
