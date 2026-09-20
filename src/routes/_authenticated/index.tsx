@@ -12,6 +12,7 @@ import {
   createView,
   deleteItem,
   deleteView,
+  reorderViews,
   FOLDER_COLORS,
   getBreadcrumb,
   removeItemFromView,
@@ -118,6 +119,8 @@ function Browser() {
   
   const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
   const [editingViewName, setEditingViewName] = React.useState("");
+  const [dragViewId, setDragViewId] = React.useState<string | null>(null);
+  const [dropViewId, setDropViewId] = React.useState<string | null>(null);
 
   const disableCreate = isStarred;
 
@@ -200,6 +203,28 @@ function Browser() {
                 label={v.name}
                 active={view === v.id}
                 onClick={() => navigate({ to: "/", search: { view: v.id } })}
+                draggable
+                isDragging={dragViewId === v.id}
+                dropBefore={dropViewId === v.id}
+                onDragStartView={() => setDragViewId(v.id)}
+                onDragOverView={() => {
+                  if (dragViewId && dragViewId !== v.id) setDropViewId(v.id);
+                }}
+                onDropView={() => {
+                  if (dragViewId && dragViewId !== v.id) {
+                    const ids = views.map((x) => x.id).filter((id) => id !== dragViewId);
+                    const at = ids.indexOf(v.id);
+                    ids.splice(at < 0 ? ids.length : at, 0, dragViewId);
+                    reorderViews(ids);
+                  }
+                  setDragViewId(null);
+                  setDropViewId(null);
+                }}
+                onDragEndView={() => {
+                  setDragViewId(null);
+                  setDropViewId(null);
+                }}
+
 
                 onDelete={() => {
                   if (confirm(`Remove view "${v.name}"?`)) deleteView(v.id);
@@ -449,6 +474,13 @@ function ViewButton({
   onEditChange,
   onEditCommit,
   onEditCancel,
+  draggable,
+  isDragging,
+  dropBefore,
+  onDragStartView,
+  onDragOverView,
+  onDropView,
+  onDragEndView,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -461,10 +493,38 @@ function ViewButton({
   onEditChange?: (name: string) => void;
   onEditCommit?: () => void;
   onEditCancel?: () => void;
+  draggable?: boolean;
+  isDragging?: boolean;
+  dropBefore?: boolean;
+  onDragStartView?: () => void;
+  onDragOverView?: () => void;
+  onDropView?: () => void;
+  onDragEndView?: () => void;
 }) {
   return (
     <div
+      draggable={draggable && !isEditing}
+      onDragStart={(e) => {
+        if (!draggable) return;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", label);
+        onDragStartView?.();
+      }}
+      onDragOver={(e) => {
+        if (!onDragOverView) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        onDragOverView();
+      }}
+      onDrop={(e) => {
+        if (!onDropView) return;
+        e.preventDefault();
+        onDropView();
+      }}
+      onDragEnd={() => onDragEndView?.()}
       className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm cursor-pointer transition-colors ${
+        isDragging ? "opacity-40" : ""
+      } ${dropBefore ? "ring-1 ring-primary/60" : ""} ${
         active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
       onClick={onClick}

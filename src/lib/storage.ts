@@ -417,6 +417,23 @@ export function updateView(id: string, patch: Partial<Omit<View, "id">>) {
 
 }
 
+export function reorderViews(orderedIds: string[]) {
+  const byId = new Map(_views.map((v) => [v.id, v]));
+  const next: View[] = [];
+  for (const id of orderedIds) {
+    const v = byId.get(id);
+    if (v) { next.push(v); byId.delete(id); }
+  }
+  for (const v of _views) if (byId.has(v.id)) next.push(v);
+  _views = next;
+  notify();
+  next.forEach((v, i) => {
+    void supabase.from("views").update({ position: i } as never).eq("id", v.id).then(({ error }) => {
+      if (error) console.error(error);
+    });
+  });
+}
+
 export function deleteView(id: string) {
   _views = _views.filter((v) => v.id !== id);
   notify();
