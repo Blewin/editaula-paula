@@ -118,6 +118,8 @@ function Browser() {
   
   const [editingViewId, setEditingViewId] = React.useState<string | null>(null);
   const [editingViewName, setEditingViewName] = React.useState("");
+  const [dragViewId, setDragViewId] = React.useState<string | null>(null);
+  const [dropViewId, setDropViewId] = React.useState<string | null>(null);
 
   const disableCreate = isStarred;
 
