@@ -686,7 +686,7 @@ function Tile({
         {item.type === "folder" ? (
           <Folder
             className="size-5 shrink-0"
-            style={{ color: item.color, fill: item.starred ? item.color : "none", fillOpacity: item.starred ? 0.25 : undefined }}
+            style={{ color: item.color, fill: item.color, fillOpacity: item.starred ? 1 : 0.85 }}
           />
         ) : (
           <FileText
