@@ -200,6 +200,28 @@ function Browser() {
                 label={v.name}
                 active={view === v.id}
                 onClick={() => navigate({ to: "/", search: { view: v.id } })}
+                draggable
+                isDragging={dragViewId === v.id}
+                dropBefore={dropViewId === v.id}
+                onDragStartView={() => setDragViewId(v.id)}
+                onDragOverView={() => {
+                  if (dragViewId && dragViewId !== v.id) setDropViewId(v.id);
+                }}
+                onDropView={() => {
+                  if (dragViewId && dragViewId !== v.id) {
+                    const ids = views.map((x) => x.id).filter((id) => id !== dragViewId);
+                    const at = ids.indexOf(v.id);
+                    ids.splice(at < 0 ? ids.length : at, 0, dragViewId);
+                    reorderViews(ids);
+                  }
+                  setDragViewId(null);
+                  setDropViewId(null);
+                }}
+                onDragEndView={() => {
+                  setDragViewId(null);
+                  setDropViewId(null);
+                }}
+
 
                 onDelete={() => {
                   if (confirm(`Remove view "${v.name}"?`)) deleteView(v.id);
