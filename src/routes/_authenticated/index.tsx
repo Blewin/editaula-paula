@@ -326,10 +326,11 @@ function Browser() {
                 />
               ) : (
                 <span
-                  className="text-foreground cursor-text"
+                  className="text-foreground cursor-text select-none"
                   title="Double-click to rename"
                   onDoubleClick={() => {
                     if (!activeView) return;
+                    window.getSelection()?.removeAllRanges();
                     setRenamingHeaderName(activeView.name);
                     setRenamingHeader(true);
                   }}
