@@ -196,7 +196,6 @@ function Browser() {
             <ViewButton
               icon={<Home className="size-4" />}
               label="Home"
-              active={!isStarred && !currentFolder}
               onClick={() => navigate({ to: "/", search: {} })}
             />
             <ViewButton
@@ -518,7 +517,7 @@ function ViewButton({
 }: {
   icon: React.ReactNode;
   label: string;
-  active: boolean;
+  active?: boolean;
   onClick: () => void;
   onDelete?: () => void;
   isEditing?: boolean;
