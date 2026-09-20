@@ -12,6 +12,7 @@ import {
   createView,
   deleteItem,
   deleteView,
+  reorderViews,
   FOLDER_COLORS,
   getBreadcrumb,
   removeItemFromView,
