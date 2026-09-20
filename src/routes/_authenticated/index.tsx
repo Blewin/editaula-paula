@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, MoreVertical, Star, Plus, X, LogOut, Download, Upload, Eye } from "lucide-react";
+import { FilePlus2, FolderPlus, Folder, FileText, ChevronRight, Trash2, MoreHorizontal, MoreVertical, Star, Home, Plus, X, LogOut, Download, Upload, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { randomBirdName } from "@/lib/birds";
 
@@ -182,13 +182,13 @@ function Browser() {
           </div>
           <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
             <ViewButton
-              icon={<Eye className="size-4" />}
+              icon={<Home className="size-4" />}
               label="Home"
               active={!isStarred && !currentFolder}
               onClick={() => navigate({ to: "/", search: {} })}
             />
             <ViewButton
-              icon={<Eye className="size-4" />}
+              icon={<Star className="size-4" />}
               label="Starred"
               active={isStarred}
               onClick={() => navigate({ to: "/", search: { view: "starred" } })}
@@ -272,7 +272,7 @@ function Browser() {
         <main className="mx-auto max-w-6xl px-6 py-6">
           {isStarred ? (
             <nav className="flex items-center gap-3 text-2xl text-muted-foreground mb-6 flex-wrap">
-              <Eye className="size-6" />
+              <Star className="size-6" />
               <span className="text-foreground">Starred</span>
             </nav>
           ) : isCustomView ? (
